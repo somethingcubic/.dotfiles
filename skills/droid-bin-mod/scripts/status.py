@@ -32,9 +32,10 @@ else:
     results['mod2'] = 'unknown'
 
 # mod3: 输出行数 slice(0,4) → slice(0,99)
-if b'slice(0,99)' in data and b'exec-preview' in data:
+# 新版使用变量 aGR，值为 4 → 99
+if (b'slice(0,99)' in data and b'exec-preview' in data) or (b'aGR=99' in data and b'exec-preview' in data):
     results['mod3'] = 'modified'
-elif b'slice(0,4)' in data and b'exec-preview' in data:
+elif (b'slice(0,4)' in data and b'exec-preview' in data) or (b'aGR=4' in data and b'exec-preview' in data):
     results['mod3'] = 'original'
 else:
     results['mod3'] = 'unknown'
@@ -50,9 +51,10 @@ else:
     results['mod4'] = 'unknown'
 
 # mod5: exec输出提示条件 >4 → >99
-if re.search(rb',' + V + rb'>99&&' + V + rb'\.jsxDEV', data):
+# 新版同样使用 aGR 值，存在 D>aGR&& 的形式
+if re.search(rb',' + V + rb'>99&&' + V + rb'\.jsxDEV', data) or (b'aGR=99' in data and re.search(rb'>aGR&&' + V + rb'\.jsxDEV', data)):
     results['mod5'] = 'modified'
-elif re.search(rb',' + V + rb'>4&&' + V + rb'\.jsxDEV', data):
+elif re.search(rb',' + V + rb'>4&&' + V + rb'\.jsxDEV', data) or (b'aGR=4' in data and re.search(rb'>aGR&&' + V + rb'\.jsxDEV', data)):
     results['mod5'] = 'original'
 else:
     results['mod5'] = 'unknown'
