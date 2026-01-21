@@ -7,7 +7,8 @@ Share commands, skills, and global agent instructions across Claude Code, Codex,
 ## What it does
 
 **Commands:**
-```
+
+```plain
 ~/.claude/commands   → ~/.dotfiles/commands (symlink)
 ~/.codex/prompts     → ~/.dotfiles/commands (symlink)
 ~/.factory/commands  → ~/.dotfiles/commands (symlink)
@@ -15,7 +16,8 @@ Share commands, skills, and global agent instructions across Claude Code, Codex,
 ```
 
 **Skills:**
-```
+
+```plain
 ~/.claude/skills                → ~/.dotfiles/skills (symlink)
 ~/.codex/skills                 → ~/.dotfiles/skills (symlink)
 ~/.factory/skills               → ~/.dotfiles/skills (symlink)
@@ -23,7 +25,8 @@ Share commands, skills, and global agent instructions across Claude Code, Codex,
 ```
 
 **Global Agent Instructions (AGENTS.md):**
-```
+
+```plain
 ~/.claude/CLAUDE.md  → ~/.dotfiles/agents/AGENTS.md (symlink)
 ~/.factory/AGENTS.md → ~/.dotfiles/agents/AGENTS.md (symlink)
 ~/.codex/AGENTS.md   → ~/.dotfiles/agents/AGENTS.md (symlink)
@@ -31,7 +34,31 @@ Share commands, skills, and global agent instructions across Claude Code, Codex,
 
 Edit once, apply everywhere.
 
+## Available Resources
+
+### Skills
+
+| Skill                     | Description                                                                      |
+| ------------------------- | -------------------------------------------------------------------------------- |
+| **[duoduo](./DUODUO.md)** | Cross-review PRs with Opus + Codex. Works via GitHub Actions or locally with [duo-cli](https://github.com/notdp/duo-cli) |
+| **agent-browser**         | Automates browser interactions for web testing, screenshots, and data extraction |
+| **react-best-practices**  | React/Next.js performance optimization guidelines from Vercel Engineering        |
+| **web-design-guidelines** | Review UI code for Web Interface Guidelines compliance                           |
+| **droid-bin-mod**         | Modify droid binary to disable output truncation                                 |
+
+### Commands
+
+| Command        | Description                                  |
+| -------------- | -------------------------------------------- |
+| `commit`       | Smart git commit with auto-generated message |
+| `cross-review` | Cross-review current PR                      |
+| `clip`         | Copy content to clipboard                    |
+| `learn`        | Learn from codebase patterns                 |
+| `simplify`     | Simplify complex code                        |
+| `pptx`         | Generate PowerPoint presentations            |
+
 ## Install
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/install.sh | bash
 ```

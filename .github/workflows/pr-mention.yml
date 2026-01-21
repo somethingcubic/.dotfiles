@@ -1,0 +1,74 @@
+name: PR Mention
+
+on:
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: duo-mention-${{ github.event.issue.number }}
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  get-runner:
+    if: |
+      github.event.issue.pull_request &&
+      (contains(github.event.comment.body, '@ordoduo') ||
+       (startsWith(github.event.comment.body, '>') &&
+        (contains(github.event.comment.body, 'Opus') ||
+         contains(github.event.comment.body, 'Codex') ||
+         contains(github.event.comment.body, 'Orchestrator'))))
+    runs-on: [self-hosted, macos, arm64]
+    outputs:
+      runner: ${{ steps.get.outputs.runner }}
+      pr_branch: ${{ steps.get.outputs.pr_branch }}
+      base_branch: ${{ steps.get.outputs.base_branch }}
+    steps:
+      - name: Get runner and PR info
+        id: get
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.issue.number }}
+          REPO=${{ github.repository }}
+          
+          # 获取 PR 信息
+          PR_INFO=$(gh pr view $PR_NUMBER --repo $REPO --json baseRefName,headRefName)
+          echo "pr_branch=$(echo $PR_INFO | jq -r .headRefName)" >> $GITHUB_OUTPUT
+          echo "base_branch=$(echo $PR_INFO | jq -r .baseRefName)" >> $GITHUB_OUTPUT
+          
+          # 从 SQLite 获取 runner，包装成 JSON 数组格式
+          SAFE_REPO=$(echo $REPO | tr '/' '-')
+          DB_PATH="/tmp/duo-${SAFE_REPO}-${PR_NUMBER}.db"
+          RUNNER=""
+          if [ -f "$DB_PATH" ]; then
+            RUNNER=$(sqlite3 "$DB_PATH" "SELECT value FROM state WHERE key='runner'" 2>/dev/null || echo "")
+          fi
+          
+          # 包装成 JSON 数组格式
+          if [ -z "$RUNNER" ]; then
+            RUNNER='["self-hosted"]'
+          elif [[ ! "$RUNNER" == \[* ]]; then
+            RUNNER="[\"$RUNNER\"]"
+          fi
+          
+          echo "runner=$RUNNER" >> $GITHUB_OUTPUT
+
+  duoduo:
+    needs: get-runner
+    uses: ./.github/workflows/duo-mention.yml
+    with:
+      pr_number: ${{ github.event.issue.number }}
+      repo: ${{ github.repository }}
+      pr_branch: ${{ needs.get-runner.outputs.pr_branch }}
+      base_branch: ${{ needs.get-runner.outputs.base_branch }}
+      comment_body: ${{ github.event.comment.body }}
+      comment_author: ${{ github.event.comment.user.login }}
+      runner: ${{ needs.get-runner.outputs.runner }}
+      bot_name: ordoduo
+    secrets:
+      DUO_APP_ID: ${{ secrets.DUO_APP_ID }}
+      DUO_APP_PRIVATE_KEY: ${{ secrets.DUO_APP_PRIVATE_KEY }}

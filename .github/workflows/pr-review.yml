@@ -1,0 +1,26 @@
+name: PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+concurrency:
+  group: duoduo-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  duoduo:
+    uses: ./.github/workflows/duo-review.yml
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      pr_branch: ${{ github.head_ref }}
+      base_branch: ${{ github.base_ref }}
+      repo: ${{ github.repository }}
+    secrets:
+      DUO_APP_ID: ${{ secrets.DUO_APP_ID }}
+      DUO_APP_PRIVATE_KEY: ${{ secrets.DUO_APP_PRIVATE_KEY }}

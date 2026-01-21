@@ -1,0 +1,72 @@
+name: Duo Mention
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: number
+      repo:
+        required: true
+        type: string
+      pr_branch:
+        required: true
+        type: string
+      base_branch:
+        required: true
+        type: string
+      comment_body:
+        required: true
+        type: string
+      comment_author:
+        required: true
+        type: string
+        description: "GitHub username of the comment author"
+      runner:
+        required: true
+        type: string
+        description: "Runner name (must match the one used for duo-review)"
+      bot_name:
+        required: true
+        type: string
+        description: "Bot username for filtering (e.g., ordoduo)"
+    secrets:
+      DUO_APP_ID:
+        required: false
+      DUO_APP_PRIVATE_KEY:
+        required: false
+      GH_TOKEN:
+        required: false
+
+jobs:
+  mention:
+    runs-on: ${{ fromJSON(inputs.runner) }}
+    steps:
+      - name: Generate App Token
+        id: app-token
+        continue-on-error: true
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.DUO_APP_ID }}
+          private-key: ${{ secrets.DUO_APP_PRIVATE_KEY }}
+
+      - name: Pull latest skills
+        run: |
+          cd ~/.dotfiles && git fetch origin && git reset --hard origin/main
+
+      - name: Install/upgrade duo-cli
+        run: pipx upgrade duo-cli 2>/dev/null || pipx install git+https://github.com/notdp/duo-cli.git
+
+      - name: Duo Mention
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GH_TOKEN }}
+          DROID_PR_NUMBER: ${{ inputs.pr_number }}
+          DROID_REPO: ${{ inputs.repo }}
+          DROID_BRANCH: ${{ inputs.pr_branch }}
+          DROID_BASE: ${{ inputs.base_branch }}
+          RUNNER: ${{ inputs.runner }}
+          BOT_NAME: ${{ inputs.bot_name }}
+        run: |
+          duo-cli mention --author "${{ inputs.comment_author }}" --stdin <<'EOF'
+          ${{ inputs.comment_body }}
+          EOF
