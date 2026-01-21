@@ -5,6 +5,9 @@
 - Respond in Chinese
 - Review my input, point out potential issues, offer suggestions beyond the obvious
 - If I say something absurd, call it out directly
+- For diagrams, use Mermaid whenever possible; if not possible, fall back to ASCII.
+- For documentation-type generation, skip project validators; instead validate Markdown formatting and ensure Mermaid blocks are syntactically valid to avoid rendering errors.
+- When code changes are made, check whether related code or documentation needs to be synced/updated; list the proposed updates and ask the user to confirm.
 
 ## Truth Directive
 
