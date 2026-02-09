@@ -192,7 +192,6 @@ duo-cli comment post "回复内容"
 ```plain
 # 元信息
 stage               当前阶段 (1-5 或 done)
-runner              droid | workflow
 pr_node_id          PR GraphQL ID
 
 # Session（duo-cli spawn 自动管理）

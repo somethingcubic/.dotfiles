@@ -30,6 +30,21 @@ on:
         required: true
         type: string
         description: "Bot username for filtering (e.g., ordoduo)"
+      model_orchestrator:
+        required: false
+        type: string
+        default: ''
+        description: "Model for Orchestrator (default: claude-opus-4-5-20251101)"
+      model_opus:
+        required: false
+        type: string
+        default: ''
+        description: "Model for Opus agent (default: claude-opus-4-5-20251101)"
+      model_codex:
+        required: false
+        type: string
+        default: ''
+        description: "Model for Codex agent (default: gpt-5.2)"
     secrets:
       DUO_APP_ID:
         required: false
@@ -50,6 +65,11 @@ jobs:
           app-id: ${{ secrets.DUO_APP_ID }}
           private-key: ${{ secrets.DUO_APP_PRIVATE_KEY }}
 
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.pr_branch }}
+          fetch-depth: 0
+
       - name: Pull latest skills
         run: |
           cd ~/.dotfiles && git fetch origin && git reset --hard origin/main
@@ -66,6 +86,9 @@ jobs:
           DROID_BASE: ${{ inputs.base_branch }}
           RUNNER: ${{ inputs.runner }}
           BOT_NAME: ${{ inputs.bot_name }}
+          DUO_MODEL_ORCHESTRATOR: ${{ inputs.model_orchestrator }}
+          DUO_MODEL_OPUS: ${{ inputs.model_opus }}
+          DUO_MODEL_CODEX: ${{ inputs.model_codex }}
         run: |
           duo-cli mention --author "${{ inputs.comment_author }}" --stdin <<'EOF'
           ${{ inputs.comment_body }}
