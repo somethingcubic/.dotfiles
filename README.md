@@ -2,87 +2,79 @@
 
 [中文](./README.zh-CN.md)
 
-Share commands, skills, and global agent instructions across Claude Code, Codex, Droid, and Antigravity.
-
-## What it does
-
-**Commands:**
-
-```plain
-~/.claude/commands   → ~/.dotfiles/commands (symlink)
-~/.codex/prompts     → ~/.dotfiles/commands (symlink)
-~/.factory/commands  → ~/.dotfiles/commands (symlink)
-~/.gemini/antigravity/global_workflows → ~/.dotfiles/commands (symlink)
-```
-
-**Skills:**
-
-```plain
-~/.claude/skills                → ~/.dotfiles/skills (symlink)
-~/.codex/skills                 → ~/.dotfiles/skills (symlink)
-~/.factory/skills               → ~/.dotfiles/skills (symlink)
-~/.gemini/antigravity/skills    → ~/.dotfiles/skills (symlink)
-```
-
-**Global Agent Instructions (AGENTS.md):**
-
-```plain
-~/.claude/CLAUDE.md  → ~/.dotfiles/agents/AGENTS.md (symlink)
-~/.factory/AGENTS.md → ~/.dotfiles/agents/AGENTS.md (symlink)
-~/.codex/AGENTS.md   → ~/.dotfiles/agents/AGENTS.md (symlink)
-```
-
-Edit once, apply everywhere.
-
-## Available Resources
-
-### Skills
-
-| Skill                     | Description                                                                      |
-| ------------------------- | -------------------------------------------------------------------------------- |
-| **[duoduo](./DUODUO.md)** | Cross-review PRs with Opus + Codex. Works via GitHub Actions or locally with [duo-cli](https://github.com/notdp/duo-cli) |
-| **agent-browser**         | Automates browser interactions for web testing, screenshots, and data extraction |
-| **react-best-practices**  | React/Next.js performance optimization guidelines from Vercel Engineering        |
-| **web-design-guidelines** | Review UI code for Web Interface Guidelines compliance                           |
-| **droid-bin-mod**         | Modify droid binary to disable output truncation                                 |
-
-### Commands
-
-| Command        | Description                                  |
-| -------------- | -------------------------------------------- |
-| `commit`       | Smart git commit with auto-generated message |
-| `cross-review` | Cross-review current PR                      |
-| `clip`         | Copy content to clipboard                    |
-| `learn`        | Learn from codebase patterns                 |
-| `simplify`     | Simplify complex code                        |
-| `pptx`         | Generate PowerPoint presentations            |
+Share commands, skills, and global agent instructions across 30+ AI coding agents.
 
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/install.sh | bash
+npx github:notdp/.dotfiles install
 ```
 
-## Supported CLIs
+Interactive installer with two setup modes:
 
-- Claude Code (`~/.claude/commands`)
-- Codex (`~/.codex/prompts`)
-- Droid (`~/.factory/commands`)
-- Antigravity (`~/.gemini/antigravity/global_workflows`)
-
-Want another IDE/CLI? PR to `scripts/config.json`.
+- **Create new** — start with pre-made skills & commands, pick what you need
+- **Import existing** — clone your own git repository
 
 ## Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/uninstall.sh | bash
+npx github:notdp/.dotfiles uninstall
 ```
 
-## Advanced (optional)
-
-- Custom install path (defaults to `~/.dotfiles`):
+## Other commands
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/install.sh | bash -s -- ~/.my-dotfiles
-curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/uninstall.sh | bash -s -- ~/.my-dotfiles
+npx -y github:notdp/.dotfiles status   # check symlink status
+npx -y github:notdp/.dotfiles fix      # merge standalone dirs into dotfiles
 ```
+
+## What it does
+
+Symlinks a single source directory to every agent's config path:
+
+```
+~/.claude/skills     → ~/.dotfiles/skills
+~/.codex/skills      → ~/.dotfiles/skills
+~/.factory/skills    → ~/.dotfiles/skills
+~/.claude/commands   → ~/.dotfiles/commands
+~/.codex/prompts     → ~/.dotfiles/commands
+~/.factory/commands  → ~/.dotfiles/commands
+~/.claude/CLAUDE.md  → ~/.dotfiles/agents/AGENTS.md
+~/.codex/AGENTS.md   → ~/.dotfiles/agents/AGENTS.md
+~/.factory/AGENTS.md → ~/.dotfiles/agents/AGENTS.md
+```
+
+Edit once, apply everywhere.
+
+## Supported Agents
+
+33 agents + 6 universal agents. Full list:
+
+AdaL, Amp, Antigravity, Augment, Claude Code, Cline, CodeBuddy, Codex, Command Code, Continue, Crush, Cursor, Droid, Gemini CLI, GitHub Copilot, Goose, iFlow CLI, Junie, Kilo Code, Kimi Code CLI, Kiro CLI, Kode, MCPJam, Mistral Vibe, Mux, Neovate, OpenClaw, OpenCode, OpenHands, Pi, Pochi, Qoder, Qwen Code, Roo Code, Trae, Windsurf, Zencoder
+
+## Skills
+
+| Skill | Description |
+|-------|-------------|
+| **[duoduo](./DUODUO.md)** | Cross-review PRs with Opus + Codex |
+| **chrome-devtools-mcp-fix** | Fix chrome-devtools MCP connection issues |
+| **chrome-devtools-mock** | Mock frontend API data via Chrome DevTools |
+| **droid-bin-mod** | Modify droid binary to disable output truncation |
+| **find-skills** | Discover and install agent skills |
+| **frontend-design** | Create production-grade frontend interfaces |
+| **mission** | Coordinate multiple droid agents via tmux |
+| **react** | React component development guide |
+| **react-best-practices** | React/Next.js performance optimization from Vercel |
+| **react-doctor** | Diagnose and fix React codebase health issues |
+| **shadcn-ui** | shadcn/ui component library guide |
+
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `clip` | Copy content to clipboard |
+| `ec` | Edit configuration |
+| `eh` | Edit history |
+| `install-react-grab` | Install react-grab component |
+| `learn` | Learn from codebase patterns |
+| `simplify` | Simplify complex code |

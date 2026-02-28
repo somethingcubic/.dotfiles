@@ -2,87 +2,79 @@
 
 [English](./README.md)
 
-让 Claude Code、Codex、Droid、Antigravity 共享 commands、skills 和全局 Agent 配置。
-
-## 做了什么
-
-**Commands:**
-
-```plain
-~/.claude/commands   → ~/.dotfiles/commands (软链)
-~/.codex/prompts     → ~/.dotfiles/commands (软链)
-~/.factory/commands  → ~/.dotfiles/commands (软链)
-~/.gemini/antigravity/global_workflows → ~/.dotfiles/commands (软链)
-```
-
-**Skills:**
-
-```plain
-~/.claude/skills                → ~/.dotfiles/skills (软链)
-~/.codex/skills                 → ~/.dotfiles/skills (软链)
-~/.factory/skills               → ~/.dotfiles/skills (软链)
-~/.gemini/antigravity/skills    → ~/.dotfiles/skills (软链)
-```
-
-**全局 Agent 配置 (AGENTS.md):**
-
-```plain
-~/.claude/CLAUDE.md  → ~/.dotfiles/agents/AGENTS.md (软链)
-~/.factory/AGENTS.md → ~/.dotfiles/agents/AGENTS.md (软链)
-~/.codex/AGENTS.md   → ~/.dotfiles/agents/AGENTS.md (软链)
-```
-
-改一处，全生效。
-
-## 可用资源
-
-### Skills
-
-| Skill | 说明 |
-|-------|------|
-| **[duoduo](./DUODUO.md)** | Opus + Codex Cross-review PR，支持本地或 GitHub Actions |
-| **agent-browser** | 自动化浏览器操作：网页测试、截图、数据提取 |
-| **react-best-practices** | Vercel 工程团队的 React/Next.js 性能优化指南 |
-| **web-design-guidelines** | 检查 UI 代码是否符合 Web 界面设计规范 |
-| **droid-bin-mod** | 修改 droid 二进制以禁用输出截断 |
-
-### Commands
-
-| 命令 | 说明 |
-|------|------|
-| `commit` | 智能 git commit，自动生成提交信息 |
-| `cross-review` | Cross-review 当前 PR |
-| `clip` | 复制内容到剪贴板 |
-| `learn` | 从代码库模式中学习 |
-| `simplify` | 简化复杂代码 |
-| `pptx` | 生成 PowerPoint 演示文稿 |
+让 30+ AI 编程 Agent 共享 commands、skills 和全局 Agent 指令。
 
 ## 安装
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/install.sh | bash
+npx github:notdp/.dotfiles install
 ```
 
-## 支持的 CLI
+交互式安装器，两种模式：
 
-- Claude Code (`~/.claude/commands`)
-- Codex (`~/.codex/prompts`)
-- Droid (`~/.factory/commands`)
-- Antigravity (`~/.gemini/antigravity/global_workflows`)
-
-想添加新 IDE/CLI 支持？欢迎 PR 到 `scripts/config.json`。
+- **新建** — 从预置 skills & commands 开始，选择需要的
+- **导入** — 克隆你自己的 git 仓库
 
 ## 卸载
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/uninstall.sh | bash
+npx github:notdp/.dotfiles uninstall
 ```
 
-## 高级用法（可选）
-
-- 自定义安装路径（默认 `~/.dotfiles`）：
+## 其他命令
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/install.sh | bash -s -- ~/.my-dotfiles
-curl -fsSL https://raw.githubusercontent.com/notdp/.dotfiles/main/scripts/uninstall.sh | bash -s -- ~/.my-dotfiles
+npx -y github:notdp/.dotfiles status   # 检查软链状态
+npx -y github:notdp/.dotfiles fix      # 合并独立目录到 dotfiles
 ```
+
+## 做了什么
+
+将单一源目录软链到每个 agent 的配置路径：
+
+```
+~/.claude/skills     → ~/.dotfiles/skills
+~/.codex/skills      → ~/.dotfiles/skills
+~/.factory/skills    → ~/.dotfiles/skills
+~/.claude/commands   → ~/.dotfiles/commands
+~/.codex/prompts     → ~/.dotfiles/commands
+~/.factory/commands  → ~/.dotfiles/commands
+~/.claude/CLAUDE.md  → ~/.dotfiles/agents/AGENTS.md
+~/.codex/AGENTS.md   → ~/.dotfiles/agents/AGENTS.md
+~/.factory/AGENTS.md → ~/.dotfiles/agents/AGENTS.md
+```
+
+改一处，全生效。
+
+## 支持的 Agent
+
+33 个 agent + 6 个 universal agent，完整列表：
+
+AdaL, Amp, Antigravity, Augment, Claude Code, Cline, CodeBuddy, Codex, Command Code, Continue, Crush, Cursor, Droid, Gemini CLI, GitHub Copilot, Goose, iFlow CLI, Junie, Kilo Code, Kimi Code CLI, Kiro CLI, Kode, MCPJam, Mistral Vibe, Mux, Neovate, OpenClaw, OpenCode, OpenHands, Pi, Pochi, Qoder, Qwen Code, Roo Code, Trae, Windsurf, Zencoder
+
+## Skills
+
+| Skill | 说明 |
+|-------|------|
+| **[duoduo](./DUODUO.md)** | Opus + Codex 交叉审查 PR |
+| **chrome-devtools-mcp-fix** | 修复 chrome-devtools MCP 连接问题 |
+| **chrome-devtools-mock** | 通过 Chrome DevTools 注入脚本 mock 前端 API 数据 |
+| **droid-bin-mod** | 修改 droid 二进制以禁用输出截断 |
+| **find-skills** | 发现和安装 agent skills |
+| **frontend-design** | 创建生产级前端界面 |
+| **mission** | 通过 tmux 协调多个 droid agent |
+| **react** | React 组件开发指南 |
+| **react-best-practices** | Vercel 工程团队的 React/Next.js 性能优化指南 |
+| **react-doctor** | 诊断和修复 React 代码库健康问题 |
+| **shadcn-ui** | shadcn/ui 组件库指南 |
+
+## Commands
+
+| 命令 | 说明 |
+|------|------|
+| `clip` | 复制内容到剪贴板 |
+| `ec` | 编辑配置 |
+| `eh` | 编辑历史 |
+| `install-react-grab` | 安装 react-grab 组件 |
+| `learn` | 从代码库模式中学习 |
+| `simplify` | 简化复杂代码 |
