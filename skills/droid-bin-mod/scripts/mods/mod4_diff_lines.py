@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """mod4: diff显示行数 20→99 行 (0 bytes)"""
-import sys
+import sys, re
 sys.path.insert(0, str(__file__).rsplit('/', 2)[0])
 from common import load_droid, save_droid, replace_one, V
 
 data = load_droid()
 original_size = len(data)
+
+if re.search(rb'var ' + V + rb'=99,' + V + rb',', data):
+    print("mod4 已应用，跳过")
+    sys.exit(0)
 
 # var XX=20, → var XX=99,
 # 特征：后面跟变量声明(逗号+字母)，不跟数字赋值

@@ -13,6 +13,10 @@ from common import load_droid, save_droid, V
 data = load_droid()
 original_size = len(data)
 
+if b'=this.customModels.map(m=>m.id);' in data:
+    print("mod6 已应用，跳过")
+    sys.exit(0)
+
 INSERT = b'=this.customModels.map(m=>m.id);'
 VALIDATE_PAT = rb'if\(!this\.validateModelAccess\(' + V + rb'\)\.allowed\)continue;'
 

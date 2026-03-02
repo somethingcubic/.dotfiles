@@ -11,6 +11,10 @@ from common import load_droid, save_droid, V
 
 data = load_droid()
 
+if re.search(V + rb'=99,' + V + rb'=5,' + V + rb'=200', data):
+    print("mod3 已应用，跳过")
+    sys.exit(0)
+
 # 模式: VAR=4,VAR2=5,VAR3=200 (输出行数配置)
 pattern = rb'(' + V + rb')=4,(' + V + rb')=5,(' + V + rb')=200'
 match = re.search(pattern, data)

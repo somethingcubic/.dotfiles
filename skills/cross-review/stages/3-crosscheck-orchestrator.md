@@ -64,9 +64,9 @@ Write to: $CR_WORKSPACE/results/claude-crosscheck-round${ROUND}.md
 When done: touch $CR_WORKSPACE/results/claude-crosscheck-round${ROUND}.done
 TASK_FOOTER
 
-  mission type claude "Read and execute $CR_WORKSPACE/tasks/claude-crosscheck-round${ROUND}.md" -t "$CR_TEAM"
+  hive type claude "Read and execute $CR_WORKSPACE/tasks/claude-crosscheck-round${ROUND}.md" -t "$CR_TEAM"
 
-  mission wait claude "crosscheck-round${ROUND}" -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 300
+  hive wait claude "crosscheck-round${ROUND}" -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 300
 
   # === GPT 回应 ===
   CLAUDE_RESPONSE=$(cat "$CR_WORKSPACE/results/claude-crosscheck-round${ROUND}.md")
@@ -92,9 +92,9 @@ Write to: $CR_WORKSPACE/results/gpt-crosscheck-round${ROUND}.md
 When done: touch $CR_WORKSPACE/results/gpt-crosscheck-round${ROUND}.done
 TASK_FOOTER
 
-  mission type gpt "Read and execute $CR_WORKSPACE/tasks/gpt-crosscheck-round${ROUND}.md" -t "$CR_TEAM"
+  hive type gpt "Read and execute $CR_WORKSPACE/tasks/gpt-crosscheck-round${ROUND}.md" -t "$CR_TEAM"
 
-  mission wait gpt "crosscheck-round${ROUND}" -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 300
+  hive wait gpt "crosscheck-round${ROUND}" -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 300
 
   # === Orchestrator 判断是否达成共识 ===
   CLAUDE_ROUND=$(cat "$CR_WORKSPACE/results/claude-crosscheck-round${ROUND}.md")

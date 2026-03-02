@@ -62,7 +62,6 @@ AdaL, Amp, Antigravity, Augment, Claude Code, Cline, CodeBuddy, Codex, Command C
 | **droid-bin-mod** | 修改 droid 二进制以禁用输出截断 |
 | **find-skills** | 发现和安装 agent skills |
 | **frontend-design** | 创建生产级前端界面 |
-| **mission** | 通过 tmux 协调多个 droid agent |
 | **react** | React 组件开发指南 |
 | **react-best-practices** | Vercel 工程团队的 React/Next.js 性能优化指南 |
 | **react-doctor** | 诊断和修复 React 代码库健康问题 |

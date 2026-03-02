@@ -2,13 +2,13 @@
 
 ## 前置条件
 
-- 调用方已通过 `mission create --workspace ... --state ...` 初始化 workspace
+- 调用方已通过 `hive create --workspace ... --state ...` 初始化 workspace
 - `$CR_WORKSPACE` 和 `$CR_TEAM` 环境变量已设置
-- mission team 已创建（`mission create "$CR_TEAM" ...`）
+- hive team 已创建（`hive create "$CR_TEAM" ...`）
 
 ## 禁止操作
 
-- 不要重新执行 `mission create`（调用方已完成）
+- 不要重新执行 `hive create`（调用方已完成）
 - 不要直接操作 tmux
 
 ## 概述
@@ -34,8 +34,8 @@ MODEL_CLAUDE="${CR_MODEL_CLAUDE:-custom:claude-opus-4-6}"
 MODEL_GPT="${CR_MODEL_GPT:-custom:gpt-5.3-codex}"
 
 # 启动两个 Agent
-mission spawn claude -t "$CR_TEAM" -m "$MODEL_CLAUDE" --skill cross-review -e "CR_WORKSPACE=$CR_WORKSPACE"
-mission spawn gpt -t "$CR_TEAM" -m "$MODEL_GPT" --skill cross-review -e "CR_WORKSPACE=$CR_WORKSPACE"
+hive spawn claude -t "$CR_TEAM" -m "$MODEL_CLAUDE" --skill cross-review -e "CR_WORKSPACE=$CR_WORKSPACE"
+hive spawn gpt -t "$CR_TEAM" -m "$MODEL_GPT" --skill cross-review -e "CR_WORKSPACE=$CR_WORKSPACE"
 ```
 
 ## 发送任务
@@ -77,15 +77,15 @@ Read ~/.factory/skills/cross-review/stages/1-review-agent.md for detailed review
 2. When FULLY complete, run: touch $CR_WORKSPACE/results/${AGENT}-r1.done
 EOF
 
-  mission type "$AGENT" "Read and execute $CR_WORKSPACE/tasks/${AGENT}-review.md" -t "$CR_TEAM"
+  hive type "$AGENT" "Read and execute $CR_WORKSPACE/tasks/${AGENT}-review.md" -t "$CR_TEAM"
 done
 ```
 
 ## 等待
 
 ```bash
-mission wait claude r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600 &
-mission wait gpt r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600 &
+hive wait claude r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600 &
+hive wait gpt r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600 &
 wait
 ```
 

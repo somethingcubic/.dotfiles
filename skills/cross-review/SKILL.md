@@ -1,23 +1,23 @@
 ---
 name: cross-review
-description: 基于 Mission 的双 Agent 交叉 PR 审查。通过 mission CLI 启动 Agent，文件系统传递任务和结果。
-metadata: {"cross-review-bot":{"emoji":"🔀","os":["darwin","linux"],"requires":{"bins":["tmux","droid","gh","python3","mission"]}}}
+description: 基于 Hive 的双 Agent 交叉 PR 审查。通过 hive CLI 启动 Agent，文件系统传递任务和结果。
+metadata: {"cross-review-bot":{"emoji":"🔀","os":["darwin","linux"],"requires":{"bins":["tmux","droid","gh","python3","hive"]}}}
 ---
 
 # Cross Review - 双 Agent 交叉审查
 
-通过 `mission` CLI 在当前 tmux window 中启动审查 Agent。
+通过 `hive` CLI 在当前 tmux window 中启动审查 Agent。
 Orchestrator 就是当前 droid，Claude 和 GPT 出现在旁边的 pane 中。
 
 ## 1. 启动
 
-Orchestrator（当前 droid）通过 `mission create` 初始化 workspace 和 team，然后 spawn agent：
+Orchestrator（当前 droid）通过 `hive create` 初始化 workspace 和 team，然后 spawn agent：
 
 ```bash
 export CR_WORKSPACE="/tmp/cr-<safe_repo>-<pr_number>"
 export CR_TEAM="cr-<safe_repo>-<pr_number>"
 
-mission create "$CR_TEAM" -d "Cross review PR #<pr_number>" \
+hive create "$CR_TEAM" -d "Cross review PR #<pr_number>" \
   --workspace "$CR_WORKSPACE" \
   --reset-workspace \
   --state "repo=<repo>" \
@@ -28,7 +28,7 @@ mission create "$CR_TEAM" -d "Cross review PR #<pr_number>" \
   --state "stage=1"
 ```
 
-然后在阶段 1 中通过 `mission spawn` 启动 Claude 和 GPT。
+然后在阶段 1 中通过 `hive spawn` 启动 Claude 和 GPT。
 
 ---
 
@@ -74,7 +74,7 @@ mission create "$CR_TEAM" -d "Cross review PR #<pr_number>" \
 ### 布局
 
 ```
-当前 tmux window (由 mission 管理):
+当前 tmux window (由 hive 管理):
 ┌──────────────┬──────────────┐
 │              │    claude    │
 │ orchestrator ├──────────────┤
@@ -90,8 +90,8 @@ cat > "$CR_WORKSPACE/tasks/claude-review.md" << 'EOF'
 ...
 EOF
 
-# 2. 通过 mission type 发送给 Agent
-mission type claude "Read and execute $CR_WORKSPACE/tasks/claude-review.md" -t "$CR_TEAM"
+# 2. 通过 hive type 发送给 Agent
+hive type claude "Read and execute $CR_WORKSPACE/tasks/claude-review.md" -t "$CR_TEAM"
 ```
 
 ### 等待完成
@@ -99,7 +99,7 @@ mission type claude "Read and execute $CR_WORKSPACE/tasks/claude-review.md" -t "
 轮询 sentinel 文件：
 
 ```bash
-mission wait claude r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600
+hive wait claude r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600
 ```
 
 ### 文件系统 workspace
@@ -133,15 +133,15 @@ $CR_WORKSPACE/
 
 ## 5. Agent 启动
 
-Orchestrator 通过 mission spawn 启动 Agent：
+Orchestrator 通过 hive spawn 启动 Agent：
 
 ```bash
 MODEL_CLAUDE="${CR_MODEL_CLAUDE:-custom:claude-opus-4-6}"
 MODEL_GPT="${CR_MODEL_GPT:-custom:gpt-5.3-codex}"
 
-mission spawn claude -t "$CR_TEAM" -m "$MODEL_CLAUDE" --skill cross-review \
+hive spawn claude -t "$CR_TEAM" -m "$MODEL_CLAUDE" --skill cross-review \
   -e "CR_WORKSPACE=$CR_WORKSPACE"
-mission spawn gpt -t "$CR_TEAM" -m "$MODEL_GPT" --skill cross-review \
+hive spawn gpt -t "$CR_TEAM" -m "$MODEL_GPT" --skill cross-review \
   -e "CR_WORKSPACE=$CR_WORKSPACE"
 ```
 
@@ -151,18 +151,18 @@ mission spawn gpt -t "$CR_TEAM" -m "$MODEL_GPT" --skill cross-review \
 
 **禁止：**
 
-- 直接操作 tmux（通过 mission 命令交互）
+- 直接操作 tmux（通过 hive 命令交互）
 - 直接读取 PR diff 或代码（阶段 5 除外）
 - 自己审查代码
 - 在阶段 1-4 发布 PR 评论（仅阶段 5 发最终结论）
 
 **必须：**
 
-- 通过 `mission spawn` 启动 Claude/GPT Agent
-- 通过 `mission type` 发送任务指令
+- 通过 `hive spawn` 启动 Claude/GPT Agent
+- 通过 `hive type` 发送任务指令
 - 通过文件系统交换任务/结果
 - 等待 sentinel 文件确认 Agent 完成
-- 在阶段 5 完成后调用 `mission delete` 清理
+- 在阶段 5 完成后调用 `hive delete` 清理
 
 ---
 
@@ -170,14 +170,14 @@ mission spawn gpt -t "$CR_TEAM" -m "$MODEL_GPT" --skill cross-review \
 
 | 命令 | 用途 | 示例 |
 |------|------|------|
-| `mission create` | 创建 team + 初始化 workspace | `mission create "$CR_TEAM" -d "..." --workspace "$CR_WORKSPACE" --state "repo=..." ...` |
-| `mission spawn` | 启动 Agent | `mission spawn claude -t "$CR_TEAM" -m model --skill cross-review -e "CR_WORKSPACE=..."` |
-| `mission type` | 发送任务给 Agent | `mission type claude "Read and execute ..." -t "$CR_TEAM"` |
-| `mission status` | 查看 Agent 状态 | `mission status -t "$CR_TEAM"` |
-| `mission capture` | 查看 Agent 输出 | `mission capture claude -t "$CR_TEAM"` |
-| `mission wait` | 等待 sentinel 文件 | `mission wait claude r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600` |
-| `mission comment` | GitHub 评论（仅阶段 5） | `mission comment post "body" --workspace "$CR_WORKSPACE"` |
-| `mission delete` | 删 team + workspace | `mission delete "$CR_TEAM"` |
+| `hive create` | 创建 team + 初始化 workspace | `hive create "$CR_TEAM" -d "..." --workspace "$CR_WORKSPACE" --state "repo=..." ...` |
+| `hive spawn` | 启动 Agent | `hive spawn claude -t "$CR_TEAM" -m model --skill cross-review -e "CR_WORKSPACE=..."` |
+| `hive type` | 发送任务给 Agent | `hive type claude "Read and execute ..." -t "$CR_TEAM"` |
+| `hive status` | 查看 Agent 状态 | `hive status -t "$CR_TEAM"` |
+| `hive capture` | 查看 Agent 输出 | `hive capture claude -t "$CR_TEAM"` |
+| `hive wait` | 等待 sentinel 文件 | `hive wait claude r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600` |
+| `hive comment` | GitHub 评论（仅阶段 5） | `hive comment post "body" --workspace "$CR_WORKSPACE"` |
+| `hive delete` | 删 team + workspace | `hive delete "$CR_TEAM"` |
 
 ---
 
@@ -192,4 +192,4 @@ STAGE=$(cat "$CR_WORKSPACE/state/stage")
 
 ## 9. Cleanup
 
-Orchestrator 在阶段 5 完成后调用 `mission delete "$CR_TEAM"`，删除 mission team 并清理 workspace。
+Orchestrator 在阶段 5 完成后调用 `hive delete "$CR_TEAM"`，删除 hive team 并清理 workspace。

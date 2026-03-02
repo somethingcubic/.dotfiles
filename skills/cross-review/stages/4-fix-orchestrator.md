@@ -58,13 +58,13 @@ cat >> "$CR_WORKSPACE/tasks/claude-fix.md" << TASK_FOOTER
 3. When done: touch $CR_WORKSPACE/results/claude-fix.done
 TASK_FOOTER
 
-mission type claude "Read and execute $CR_WORKSPACE/tasks/claude-fix.md" -t "$CR_TEAM"
+hive type claude "Read and execute $CR_WORKSPACE/tasks/claude-fix.md" -t "$CR_TEAM"
 ```
 
 ### 等待修复 → 通知 GPT 验证
 
 ```bash
-mission wait claude fix -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600
+hive wait claude fix -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600
 
 FIX_RESULT=$(cat "$CR_WORKSPACE/results/claude-fix.md")
 FIX_BRANCH=$(cat "$CR_WORKSPACE/state/s4-branch")
@@ -97,13 +97,13 @@ cat >> "$CR_WORKSPACE/tasks/gpt-verify.md" << TASK_FOOTER
 3. When done: touch $CR_WORKSPACE/results/gpt-verify.done
 TASK_FOOTER
 
-mission type gpt "Read and execute $CR_WORKSPACE/tasks/gpt-verify.md" -t "$CR_TEAM"
+hive type gpt "Read and execute $CR_WORKSPACE/tasks/gpt-verify.md" -t "$CR_TEAM"
 ```
 
 ### 处理验证结果
 
 ```bash
-mission wait gpt verify -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 300
+hive wait gpt verify -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 300
 ```
 
 - 通过 → 阶段 5

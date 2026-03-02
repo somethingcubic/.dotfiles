@@ -62,7 +62,6 @@ AdaL, Amp, Antigravity, Augment, Claude Code, Cline, CodeBuddy, Codex, Command C
 | **droid-bin-mod** | Modify droid binary to disable output truncation |
 | **find-skills** | Discover and install agent skills |
 | **frontend-design** | Create production-grade frontend interfaces |
-| **mission** | Coordinate multiple droid agents via tmux |
 | **react** | React component development guide |
 | **react-best-practices** | React/Next.js performance optimization from Vercel |
 | **react-doctor** | Diagnose and fix React codebase health issues |

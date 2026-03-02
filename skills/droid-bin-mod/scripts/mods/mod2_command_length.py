@@ -7,6 +7,10 @@ from common import load_droid, save_droid, replace_one
 data = load_droid()
 original_size = len(data)
 
+if b'command.length>99' in data:
+    print("mod2 已应用，跳过")
+    sys.exit(0)
+
 # command.length>50 → >99
 data, _ = replace_one(
     data,

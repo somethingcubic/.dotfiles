@@ -84,7 +84,7 @@ git diff "origin/$BASE...origin/$BRANCH" -- path/to/relevant-file.py
 <details>
 <summary>Session Info</summary>
 
-从 `mission status -t "$CR_TEAM"` 获取 agent session ID，从 state 文件获取 orchestrator session：
+从 `hive status -t "$CR_TEAM"` 获取 agent session ID，从 state 文件获取 orchestrator session：
 
 - Orchestrator: `$(cat "$CR_WORKSPACE/state/orch-session")`
 - Claude: `{sessionId from status}` (model: `$CR_MODEL_CLAUDE`)
@@ -153,13 +153,13 @@ PR_NUMBER=$(cat "$CR_WORKSPACE/state/pr-number")
 #### 有已修复的 findings → 一条 PR review（summary + inline comments）
 
 ```bash
-mission comment review-post "$SUMMARY_BODY" "$INLINE_COMMENTS_JSON" --workspace "$CR_WORKSPACE"
+hive comment review-post "$SUMMARY_BODY" "$INLINE_COMMENTS_JSON" --workspace "$CR_WORKSPACE"
 ```
 
 #### 无 findings 或全部 Skip → 一条普通评论
 
 ```bash
-SUMMARY_NODE_ID=$(mission comment post "$SUMMARY_BODY" --workspace "$CR_WORKSPACE")
+SUMMARY_NODE_ID=$(hive comment post "$SUMMARY_BODY" --workspace "$CR_WORKSPACE")
 echo "$SUMMARY_NODE_ID" > "$CR_WORKSPACE/comments/cr-summary.id"
 ```
 
@@ -168,5 +168,5 @@ echo "$SUMMARY_NODE_ID" > "$CR_WORKSPACE/comments/cr-summary.id"
 ```bash
 echo "done" > "$CR_WORKSPACE/state/stage"
 
-mission delete "$CR_TEAM"
+hive delete "$CR_TEAM"
 ```
