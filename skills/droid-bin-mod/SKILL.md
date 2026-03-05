@@ -53,14 +53,12 @@ mod6: Ctrl+N 只在 custom model 间切换 (/model 菜单不受影响)
 mod7: Mission 门控破解 → /enter-mission 可用 (BYOK)
 mod8: Mission 模型不强切 → Orchestrator 保持 custom model
 mod9: Custom model 支持完整 effort 级别 (anthropic: max, openai: xhigh)
-mod10: Mission spawn 认证 → 仅 API key 登录时 fallback (未 droid login)
 
 注：mod1 影响命令框提示，mod5 影响输出区提示，两者位置不同
 注：mod7+mod8 配合 settings.json 中 missionModelSettings 设置 Worker/Validator 模型
 注：mod9 修复 custom model Tab 切换只有 off/low/medium/high 的限制
-注：mod10 解决 "No access token available" spawn 报错，仅 FACTORY_API_KEY 登录（未 droid login OAuth）时必需
 
-select: 1,2,3,4,5,6,7,8,9,10 / all / restore
+select: 1,2,3,4,5,6,7,8,9 / all / restore
 ```
 
 用户选择后，执行对应修改。
@@ -179,8 +177,7 @@ function JZ9(A, R=80, T=3) {       // R=宽度限制80字符, T=行数限制3行
 | 7   | mission 门控 | `enable_extra_mode`,`!1` | `enable_extra_mod0`,`!0` | 0 | /enter-mission 可用 |
 | 8   | mission 模型 | `Y9H.includes(X)` | `!0` + 空格填充 | 0  | 改条件而非数据，不强切+不警告         |
 | 9   | effort 级别  | `["off","low","medium","high"]` | 按 provider 区分 | +66 | anthropic 加 max，openai 加 xhigh |
-| 10  | spawn 认证   | `_0H()` throw | fallback API key | +37 | 仅 API key 登录时 (未 OAuth)          |
-| 补偿 | 死代码区域   | 多处死代码   | 注释/缩短填充   | -104 | 统一补偿 mod3(+1) + mod9(+66) + mod10(+37) |
+| 补偿 | 死代码区域   | 多处死代码   | 注释/缩短填充   | -67  | 统一补偿 mod3(+1) + mod9(+66) |
 
 **注**：
 - mod1: 命令框提示（command truncated）
@@ -190,7 +187,6 @@ function JZ9(A, R=80, T=3) {       // R=宽度限制80字符, T=行数限制3行
 - mod7: 改 `EnableAGIMode` 定义处的 statsigName + defaultValue
 - mod8: 两处 `Y9H.includes(X)` → `!0`（改条件，不改数据结构）
 - mod9: wR() 中 custom model 分支，根据 T.provider 返回正确的 effort 列表
-- mod10: 客户端 `_0H()` API key fallback + daemon `$E$()` API-key-as-token 路由
 
 ### 修改 7: Mission 门控破解
 
@@ -376,11 +372,10 @@ mods/mod6_custom_model_cycle.py  # Ctrl+N 只切换 custom model (0 bytes)
 mods/mod7_mission_gate.py        # Mission 门控破解 (0 bytes)
 mods/mod8_mission_model.py             # Mission 模型不强切 (0 bytes)
 mods/mod9_custom_effort_levels.py      # custom model effort 级别 (+66 bytes)
-mods/mod10_mission_apikey_auth.py      # Mission spawn API key 认证 (+37 bytes)
 ```
 
-mod3 产生 +1 byte，mod9 产生 +66 bytes，mod10 产生 +37 bytes，合计 +104 bytes。
-由 `comp_universal.py 104` 统一补偿。
+mod3 产生 +1 byte，mod9 产生 +66 bytes，合计 +67 bytes。
+由 `comp_universal.py 67` 统一补偿。
 
 ### compensations/ - 字节补偿
 
@@ -392,7 +387,7 @@ compensations/comp_substring.py <bytes>  # 旧方案：仅修改 FFH 函数的 s
 compensations/comp_r80_to_r8.py          # 旧方案：R=80→R=8 (-1 byte)
 ```
 
-用法：`python3 comp_universal.py 104` 补偿 mod3(+1) + mod9(+66) + mod10(+37) 的 +104 bytes。
+用法：`python3 comp_universal.py 67` 补偿 mod3(+1) + mod9(+66) 的 +67 bytes。
 
 补偿区域来源 (由各 mod 短路/替换产生的死代码):
 - FFH 死代码 (mod1 短路): ~151B — 截断函数被短路后的不可达代码，替换为 `;return{text:H,isTruncated:!1}`
@@ -415,8 +410,7 @@ python3 ~/.factory/skills/droid-bin-mod/scripts/mods/mod6_custom_model_cycle.py
 python3 ~/.factory/skills/droid-bin-mod/scripts/mods/mod7_mission_gate.py
 python3 ~/.factory/skills/droid-bin-mod/scripts/mods/mod8_mission_model.py
 python3 ~/.factory/skills/droid-bin-mod/scripts/mods/mod9_custom_effort_levels.py  # +66 bytes
-python3 ~/.factory/skills/droid-bin-mod/scripts/mods/mod10_mission_apikey_auth.py  # +37 bytes
-python3 ~/.factory/skills/droid-bin-mod/scripts/compensations/comp_universal.py 104  # 补偿 mod3(+1) + mod9(+66) + mod10(+37)
+python3 ~/.factory/skills/droid-bin-mod/scripts/compensations/comp_universal.py 67  # 补偿 mod3(+1) + mod9(+66)
 
 # 3. macOS: 重新签名
 [[ "$OSTYPE" == "darwin"* ]] && codesign -s - ~/.local/bin/droid
@@ -562,7 +556,7 @@ near_marker=b'exec-preview', max_dist=1000  # 默认500
 cp ~/.local/bin/droid ~/.local/bin/droid.backup.$(~/.local/bin/droid --version)
 ```
 
-### 6. mod6/7/8/9/10 排查
+### 6. mod6/7/8/9 排查
 
 **mod6** (custom model cycle):
 ```bash
@@ -588,59 +582,3 @@ strings ~/.local/bin/droid | grep -E "getReasoningEffort|\.includes\("
 strings ~/.local/bin/droid | grep "supportedReasoningEfforts"
 strings ~/.local/bin/droid | grep -E '\["off","low","medium","high"\]'
 ```
-
-**mod10** (mission spawn 认证):
-```bash
-# 检查 _0H() 中 access_token 获取逻辑
-strings ~/.local/bin/droid | grep "No access token available"
-# 检查 $E$() 中 API key 路由
-strings ~/.local/bin/droid | grep "startsWith(_cD"
-```
-
-### 修改 10: Mission spawn API key 认证
-
-**问题**: mission worker spawn 需要 OAuth access_token (通过 `droid login` 获取)，仅用 `FACTORY_API_KEY` 登录时无 access_token → "No access token available"
-
-**位置**: 两处
-- 客户端 `_0H()` 函数 (获取 access token)
-- daemon `$E$()` 函数 (验证认证)
-
-**原始代码**:
-```javascript
-// 客户端: _0H() 只取 access_token，无 fallback
-async function _0H(){
-  let $=(await fY())?.access_token?.trim();
-  if(!$) throw new vH("No access token available");  // ← BYOK 用户死在这里
-  return $
-}
-
-// daemon: $E$() 支持两种认证，但客户端只传 token
-async function $E$(H){
-  let{apiKey:$, token:A, ...}=H;
-  if($?.startsWith("fk-")) return FcD($,L);  // API key 路径 (从不走到)
-  if(A) return qcD(A,...);  // JWT token 路径
-  throw "No authentication provided"
-}
-```
-
-**修改**:
-```javascript
-// Patch A: _0H() fallback 到 API key
-let $=(await fY())?.access_token?.trim()||process.env.FACTORY_API_KEY;
-// 无 access_token 时用 API key (以 "fk-" 开头)
-
-// Patch B: $E$() 路由 API-key-as-token
-if(($||A)?.startsWith(_cD)) return FcD($||A,L);  // apiKey 或 token 都检查 "fk-" 前缀
-```
-
-**完整流程**:
-1. 客户端 `_0H()` 无 access_token → 返回 `FACTORY_API_KEY` (如 `"fk-xxx"`)
-2. 客户端发送 `{token: "fk-xxx", ...}` 给 daemon
-3. daemon `$E$()` 见 token 以 `"fk-"` 开头 → 走 API key 验证 (`FcD`)
-4. `FcD` 调用 Factory API 验证 → 返回 `{userId, orgId, apiKey: "fk-xxx"}`
-5. daemon spawn 子进程时 `lZH()` 见无 `.token` → 设 `FACTORY_API_KEY` env var
-6. 子进程用 API key 正常工作
-
-**字节**: +37 bytes，由 `comp_universal.py` 统一补偿
-
-**稳定锚点**: `"No access token available"` 错误消息、`startsWith(_cD)` 前缀检查

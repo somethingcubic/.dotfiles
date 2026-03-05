@@ -109,31 +109,8 @@ elif b'supportedReasoningEfforts:L?["off","low","medium","high"]:["none"]' in da
 else:
     results['mod9'] = 'unknown'
 
-# mod10: mission API key 认证 (双点检测)
-def _mod10_detect():
-    # Patch A: access_token fallback to FACTORY_API_KEY
-    _a_mod = b'||process.env.FACTORY_API_KEY;' in data and b'No access token available' in data
-    _a_orig = bool(re.search(
-        rb'\?\.access_token\?\.trim\(\);if\(!' + V + rb'\)throw.*?No access token available', data
-    )) and not _a_mod
-    # Patch B: (VAR||VAR)?.startsWith → API key 路由
-    _b_mod = bool(re.search(
-        rb'\(' + V + rb'\|\|' + V + rb'\)\?\.startsWith\(' + V + rb'\)\)return ' + V + rb'\(', data))
-    _b_orig = bool(re.search(
-        V + rb'\?\.startsWith\(' + V + rb'\)\)return ' + V + rb'\(' + V + rb','
-        + V + rb'\);if\(' + V + rb'\)return', data)) and not _b_mod
-    if _a_mod and _b_mod:
-        return 'modified'
-    elif _a_orig and _b_orig:
-        return 'original'
-    elif _a_mod or _b_mod:
-        return 'partial'
-    return 'unknown'
-
-results['mod10'] = _mod10_detect()
-
 # 输出
-total = 10
+total = 9
 mod_count = sum(1 for v in results.values() if v == 'modified')
 orig_count = sum(1 for v in results.values() if v == 'original')
 

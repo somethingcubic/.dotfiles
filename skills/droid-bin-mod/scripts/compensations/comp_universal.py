@@ -12,6 +12,8 @@
   4. mod8 空格填充 (2处)                      ~25B
   总计: ~249B
 
+需补偿: mod3(+1) + mod9(+66) = +67 bytes
+
 原理:
   - ffh_dead 类型: 整个死代码区域替换为 ;return{text:H,isTruncated:!1} + 注释
   - dead_branch 类型: else EXPR → else{} + 注释填充
