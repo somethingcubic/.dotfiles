@@ -13,21 +13,13 @@ with open(droid, 'rb') as f:
 results = {}
 
 # mod1: 截断条件
-# 检测 if(!0||! 短路 (mod1 原始形态)
-# 或 comp_universal 补偿后的直接 return 形态 (FFH 中原始条件 if(!V&&!V) 被移除)
+# 用 isTruncated 定位截断函数（不依赖混淆后的函数名）
+# 原版: if(!V&&!V)return{text:V,isTruncated:!1}
+# 修改: if(!0||!V)return{text:V,isTruncated:!1}
 if b'if(!0||!' in data:
     results['mod1'] = 'modified'
-elif b'function FFH(' in data:
-    ffh = data.find(b'function FFH(')
-    ffh_region = data[ffh:ffh + 300]
-    has_orig_cond = re.search(rb'if\(!' + V + rb'&&!' + V + rb'\)', ffh_region)
-    has_direct_return = b'return{text:H,isTruncated:!1}' in ffh_region
-    if not has_orig_cond and has_direct_return:
-        results['mod1'] = 'modified'  # comp_universal 补偿后，原始条件已移除
-    elif has_orig_cond:
-        results['mod1'] = 'original'
-    else:
-        results['mod1'] = 'unknown'
+elif re.search(rb'if\(!' + V + rb'&&!' + V + rb'\)return\{text:' + V + rb',isTruncated:!1\}', data):
+    results['mod1'] = 'original'
 else:
     results['mod1'] = 'unknown'
 
@@ -116,8 +108,8 @@ orig_count = sum(1 for v in results.values() if v == 'original')
 
 print(f"droid 状态:\n")
 for name, status in results.items():
-    icon = '✓' if status == 'modified' else '○' if status == 'original' else '?'
-    label = {'modified': '已修改', 'original': '原版', 'unknown': '未知'}[status]
+    icon = '✓' if status == 'modified' else '○' if status == 'original' else '△' if status == 'partial' else '?'
+    label = {'modified': '已修改', 'original': '原版', 'partial': '部分', 'unknown': '未知'}[status]
     note = ' (由 mod3 控制)' if name == 'mod5' else ''
     print(f"  {icon} {name}: {label}{note}")
 

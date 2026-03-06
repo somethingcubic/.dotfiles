@@ -177,7 +177,7 @@ function JZ9(A, R=80, T=3) {       // R=宽度限制80字符, T=行数限制3行
 | 7   | mission 门控 | `enable_extra_mode`,`!1` | `enable_extra_mod0`,`!0` | 0 | /enter-mission 可用 |
 | 8   | mission 模型 | `Y9H.includes(X)` | `!0` + 空格填充 | 0  | 改条件而非数据，不强切+不警告         |
 | 9   | effort 级别  | `["off","low","medium","high"]` | 按 provider 区分 | +66 | anthropic 加 max，openai 加 xhigh |
-| 补偿 | 死代码区域   | 多处死代码   | 注释/缩短填充   | -67  | 统一补偿 mod3(+1) + mod9(+66)        |
+| 补偿 | 死代码区域   | 多处死代码   | 注释/缩短填充   | -67  | 统一补偿 mod3(+1) + mod9(+66) |
 
 **注**：
 - mod1: 命令框提示（command truncated）

@@ -30,8 +30,8 @@ print(f.name.removesuffix('.settings.json'))
 ")
 echo "$ORCH_SESSION" > "$CR_WORKSPACE/state/orch-session"
 
-MODEL_CLAUDE="${CR_MODEL_CLAUDE:-custom:claude-opus-4-6}"
-MODEL_GPT="${CR_MODEL_GPT:-custom:gpt-5.3-codex}"
+MODEL_CLAUDE="${CR_MODEL_CLAUDE:-custom:Claude-Opus-4.6-0}"
+MODEL_GPT="${CR_MODEL_GPT:-custom:GPT-5.4-1}"
 
 # 启动两个 Agent
 hive spawn claude -t "$CR_TEAM" -m "$MODEL_CLAUDE" --skill cross-review -e "CR_WORKSPACE=$CR_WORKSPACE"

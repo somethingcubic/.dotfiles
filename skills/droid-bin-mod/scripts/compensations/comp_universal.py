@@ -12,6 +12,8 @@
   4. mod8 空格填充 (2处)                      ~25B
   总计: ~249B
 
+需补偿: mod3(+1) + mod9(+66) = +67 bytes
+
 原理:
   - ffh_dead 类型: 整个死代码区域替换为 ;return{text:H,isTruncated:!1} + 注释
   - dead_branch 类型: else EXPR → else{} + 注释填充
@@ -36,8 +38,13 @@ def find_regions(data):
             seen.add(offset)
             regions.append((name, offset, content, min_size, rtype))
 
-    # 1. FFH 死代码 (mod1 短路后的不可达区域)
-    ffh = data.find(b'function FFH(')
+    # 1. 截断函数死代码 (mod1 短路后的不可达区域)
+    # 用 isTruncated 定位截断函数，不依赖混淆后的函数名
+    trunc_pat = re.search(rb'if\(!0\|\|!' + V + rb'\)return\{text:' + V + rb',isTruncated:!1\}', data)
+    if not trunc_pat:
+        # 也匹配已补偿形态: ;return{text:H,isTruncated:!1} 或 /*...*/return{...}
+        trunc_pat = re.search(rb';return\{text:' + V + rb',isTruncated:!1\}', data)
+    ffh = trunc_pat.start() if trunc_pat else -1
     if ffh != -1:
         region = data[ffh:ffh + 500]
         s1 = region.find(b'isTruncated:!1}')
@@ -47,7 +54,6 @@ def find_regions(data):
             if s2 >= 0:
                 s2 += 15
             else:
-                # 已补偿形态: 结尾也是 !1}，用 rfind 找最后一个
                 s2_last = region.rfind(b'isTruncated:!1}')
                 if s2_last > s1:
                     s2 = s2_last + 15
@@ -56,11 +62,10 @@ def find_regions(data):
                 dead_start = ffh + s1 + 15
                 dead_end = ffh + s2
                 dead_content = data[dead_start:dead_end]
-                # 校验: 确认 mod1 已应用或区域已被补偿
                 is_mod1 = b'if(!0||!' in dead_content
-                is_compensated = b'/*' in dead_content and b'return{text:H,' in dead_content
+                is_compensated = b'/*' in dead_content and b'return{text:' in dead_content
                 if is_mod1 or is_compensated:
-                    add('FFH死代码', dead_start, dead_content, len(FFH_MINIMAL), 'ffh_dead')
+                    add('截断函数死代码', dead_start, dead_content, len(FFH_MINIMAL), 'ffh_dead')
 
     # 2. mod8 enter-mission else 死分支
     pat = rb'\}else ' + V + rb'\.setModel\(' + V + rb',' + V + rb'\),' + V + rb'\.setReasoningEffort\(' + V + rb'\)'
@@ -76,10 +81,10 @@ def find_regions(data):
                 content = data[m2.start():m2.end()]
                 add(name, m2.start(), content, len(content) - s + 1, 'padding')
 
-    # 4. mod6 注释 (3个函数) — 排除 FFH 区域内的注释
-    ffh_end = ffh + 500 if ffh >= 0 else -1
+    # 4. mod6 注释 (3个函数) — 排除截断函数区域内的注释
+    trunc_end = ffh + 500 if ffh >= 0 else -1
     for m3 in re.finditer(rb'/\*( +)\*/', data):
-        if ffh >= 0 and ffh <= m3.start() <= ffh_end:
+        if ffh >= 0 and ffh <= m3.start() <= trunc_end:
             continue
         s = len(m3.group(1))
         if 8 <= s <= 40:
