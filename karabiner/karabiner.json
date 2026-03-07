@@ -16,15 +16,15 @@
                                 ],
                                 "from": {
                                     "key_code": "fn",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
                                 "to": [
-                                    { "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route fn-confirm confirm 2>/dev/null" },
                                     {
-                                        "set_variable": {
-                                            "name": "dji_ready_to_send",
-                                            "value": 0
-                                        }
+                                        "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route fn-confirm confirm 2>/dev/null"
                                     }
                                 ],
                                 "type": "basic"
@@ -39,9 +39,17 @@
                                 ],
                                 "from": {
                                     "key_code": "fn",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
-                                "to": [{ "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route fn-preconfirm preconfirm 2>/dev/null" }],
+                                "to": [
+                                    {
+                                        "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route fn-preconfirm preconfirm 2>/dev/null"
+                                    }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -64,7 +72,11 @@
                                 ],
                                 "from": {
                                     "key_code": "fn",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
                                 "to": [
                                     {
@@ -79,8 +91,12 @@
                                             "value": 1
                                         }
                                     },
-                                    { "key_code": "fn" },
-                                    { "shell_command": "/usr/bin/nohup /Users/notdp/.config/karabiner/scripts/dictation-enter.sh route fn-watch watch 2>/dev/null &" }
+                                    {
+                                        "key_code": "fn"
+                                    },
+                                    {
+                                        "shell_command": "/usr/bin/nohup /Users/notdp/.config/karabiner/scripts/dictation-enter.sh route fn-watch watch 2>/dev/null &"
+                                    }
                                 ],
                                 "type": "basic"
                             },
@@ -104,11 +120,19 @@
                                 ],
                                 "from": {
                                     "key_code": "fn",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
                                 "to": [
-                                    { "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route fn-save save 2>/dev/null" },
-                                    { "key_code": "fn" },
+                                    {
+                                        "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route fn-save save 2>/dev/null"
+                                    },
+                                    {
+                                        "key_code": "fn"
+                                    },
                                     {
                                         "set_variable": {
                                             "name": "dji_dictation_active",
@@ -137,15 +161,15 @@
                                 ],
                                 "from": {
                                     "consumer_key_code": "volume_increment",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
                                 "to": [
-                                    { "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route dji-confirm confirm 2>/dev/null" },
                                     {
-                                        "set_variable": {
-                                            "name": "dji_ready_to_send",
-                                            "value": 0
-                                        }
+                                        "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route dji-confirm confirm 2>/dev/null"
                                     }
                                 ],
                                 "type": "basic"
@@ -169,9 +193,17 @@
                                 ],
                                 "from": {
                                     "consumer_key_code": "volume_increment",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
-                                "to": [{ "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route dji-preconfirm preconfirm 2>/dev/null" }],
+                                "to": [
+                                    {
+                                        "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route dji-preconfirm preconfirm 2>/dev/null"
+                                    }
+                                ],
                                 "type": "basic"
                             },
                             {
@@ -203,7 +235,11 @@
                                 ],
                                 "from": {
                                     "consumer_key_code": "volume_increment",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
                                 "to": [
                                     {
@@ -218,8 +254,12 @@
                                             "value": 1
                                         }
                                     },
-                                    { "key_code": "fn" },
-                                    { "shell_command": "/usr/bin/nohup /Users/notdp/.config/karabiner/scripts/dictation-enter.sh route dji-watch watch 2>/dev/null &" }
+                                    {
+                                        "key_code": "fn"
+                                    },
+                                    {
+                                        "shell_command": "/usr/bin/nohup /Users/notdp/.config/karabiner/scripts/dictation-enter.sh route dji-watch watch 2>/dev/null &"
+                                    }
                                 ],
                                 "type": "basic"
                             },
@@ -252,11 +292,19 @@
                                 ],
                                 "from": {
                                     "consumer_key_code": "volume_increment",
-                                    "modifiers": { "optional": ["any"] }
+                                    "modifiers": {
+                                        "optional": [
+                                            "any"
+                                        ]
+                                    }
                                 },
                                 "to": [
-                                    { "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route dji-save save 2>/dev/null" },
-                                    { "key_code": "fn" },
+                                    {
+                                        "shell_command": "/Users/notdp/.config/karabiner/scripts/dictation-enter.sh route dji-save save 2>/dev/null"
+                                    },
+                                    {
+                                        "key_code": "fn"
+                                    },
                                     {
                                         "set_variable": {
                                             "name": "dji_dictation_active",
@@ -280,7 +328,9 @@
                     "ignore": true
                 },
                 {
-                    "identifiers": { "is_keyboard": true },
+                    "identifiers": {
+                        "is_keyboard": true
+                    },
                     "ignore": true
                 },
                 {
@@ -312,7 +362,9 @@
             ],
             "name": "Default profile",
             "selected": true,
-            "virtual_hid_keyboard": { "keyboard_type_v2": "ansi" }
+            "virtual_hid_keyboard": {
+                "keyboard_type_v2": "ansi"
+            }
         }
     ]
 }
