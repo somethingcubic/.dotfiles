@@ -87,25 +87,17 @@ def _mod8_detect():
 
 results['mod8'] = _mod8_detect()
 
-# mod9: custom model effort 级别 (两个代码路径)
-# 路径1: KOH 函数 (模型列表构建) — T.provider=="openai" 区分
-# 路径2: $A 函数 (单模型解析) — 必须同样按 provider 区分，否则 Ctrl+N/setModel 会丢 xhigh
-mod9_p1 = b'T.provider=="openai"' in data and b'["off","low","medium","high","max"]' in data
-# 路径2 用正则适应混淆后变量名 (B/C/R/D 等)
-mod9_p2_pat = rb'supportedReasoningEfforts:' + V + rb'\?' + V + rb'\.provider=="openai"\?\["none","low","medium","high","xhigh"\]:\["off","low","medium","high","max"\]:\["none"\],defaultReasoningEffort:' + V + rb'\.reasoningEffort'
-mod9_p2 = bool(re.search(mod9_p2_pat, data))
-mod9_p2_orig_pat = rb'supportedReasoningEfforts:' + V + rb'\?\["off","low","medium","high"\]:\["none"\],defaultReasoningEffort:' + V + rb'\.reasoningEffort'
-# 计算: 有几个 provider-aware 的匹配 vs 原始的匹配
-mod9_provider_aware_count = len(re.findall(rb'\.provider=="openai"\?\["none","low","medium","high","xhigh"\]', data))
-mod9_orig_matches = re.findall(mod9_p2_orig_pat, data)
-# 排除 KOH 已修改的匹配 (KOH 修改后不再匹配 orig_pat)
-mod9_p1_orig = b'supportedReasoningEfforts:L?["off","low","medium","high"]:["none"]' in data
+# mod9: custom model effort 级别 (zsH + lB 两个函数)
+# 用 regex 检测: VAR.provider=="openai"?["none","low","medium","high","xhigh"] 出现次数
+mod9_pa_count = len(re.findall(rb'\.provider=="openai"\?\["none","low","medium","high","xhigh"\]', data))
+mod9_orig_pat = rb'supportedReasoningEfforts:' + V + rb'\?\["off","low","medium","high"\]:\["none"\],defaultReasoningEffort:' + V + rb'\.reasoningEffort'
+mod9_orig_count = len(re.findall(mod9_orig_pat, data))
 
-if mod9_provider_aware_count >= 2:
+if mod9_pa_count >= 2:
     results['mod9'] = 'modified'
-elif mod9_provider_aware_count == 0 and mod9_p1_orig:
+elif mod9_pa_count == 0 and mod9_orig_count >= 2:
     results['mod9'] = 'original'
-elif mod9_provider_aware_count >= 1:
+elif mod9_pa_count >= 1:
     results['mod9'] = 'partial'
 else:
     results['mod9'] = 'unknown'
