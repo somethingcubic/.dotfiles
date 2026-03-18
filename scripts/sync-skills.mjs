@@ -256,7 +256,8 @@ function syncSource(entry, checkoutDir) {
 
 function buildLockfile(entries) {
   return {
-    version: 1,
+    version: '1.0.0',
+    generatedAt: new Date().toISOString(),
     sources: entries.map(entry => ({
       name: entry.name,
       repo: entry.repo,
