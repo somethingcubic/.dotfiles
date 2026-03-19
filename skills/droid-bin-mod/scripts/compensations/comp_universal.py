@@ -12,7 +12,7 @@
   4. mod8 空格填充 (2处)                      ~25B
   总计: ~249B
 
-需补偿: mod3(+1) + mod9(+66) = +67 bytes
+需补偿: mod3(+1) + mod9(+132) = +133 bytes
 
 原理:
   - ffh_dead 类型: 整个死代码区域替换为 ;return{text:H,isTruncated:!1} + 注释
@@ -62,10 +62,7 @@ def find_regions(data):
                 dead_start = ffh + s1 + 15
                 dead_end = ffh + s2
                 dead_content = data[dead_start:dead_end]
-                is_mod1 = b'if(!0||!' in dead_content
-                is_compensated = b'/*' in dead_content and b'return{text:' in dead_content
-                if is_mod1 or is_compensated:
-                    add('截断函数死代码', dead_start, dead_content, len(FFH_MINIMAL), 'ffh_dead')
+                add('截断函数死代码', dead_start, dead_content, len(FFH_MINIMAL), 'ffh_dead')
 
     # 2. mod8 enter-mission else 死分支
     pat = rb'\}else ' + V + rb'\.setModel\(' + V + rb',' + V + rb'\),' + V + rb'\.setReasoningEffort\(' + V + rb'\)'

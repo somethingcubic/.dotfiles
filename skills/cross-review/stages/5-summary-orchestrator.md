@@ -9,7 +9,7 @@
 ## 执行
 
 ```bash
-echo "5" > "$CR_WORKSPACE/state/stage"
+hive status-set running "stage 5 summary" --agent orchestrator --workspace "$CR_WORKSPACE" --meta cr.stage=5
 ```
 
 ## 步骤
@@ -17,22 +17,31 @@ echo "5" > "$CR_WORKSPACE/state/stage"
 ### 1. 收集所有结果
 
 ```bash
-CLAUDE_REVIEW=$(cat "$CR_WORKSPACE/results/claude-r1.md" 2>/dev/null || echo "N/A")
-GPT_REVIEW=$(cat "$CR_WORKSPACE/results/gpt-r1.md" 2>/dev/null || echo "N/A")
-S2_RESULT=$(cat "$CR_WORKSPACE/state/s2-result" 2>/dev/null || echo "N/A")
-CROSSCHECK=$(cat "$CR_WORKSPACE/results/crosscheck-summary.md" 2>/dev/null || echo "N/A")
-FIX_RESULT=$(cat "$CR_WORKSPACE/results/claude-fix.md" 2>/dev/null || echo "N/A")
-VERIFY_RESULT=$(cat "$CR_WORKSPACE/results/gpt-verify.md" 2>/dev/null || echo "N/A")
+CLAUDE_STATUS=$(hive status-show --workspace "$CR_WORKSPACE" --agent claude)
+GPT_STATUS=$(hive status-show --workspace "$CR_WORKSPACE" --agent gpt)
+ORCH_STATUS=$(hive status-show --workspace "$CR_WORKSPACE" --agent orchestrator)
+TEAM_STATUS=$(hive who -t "$CR_TEAM")
+```
+
+从 status 的 `cr.artifact` 元数据和 `artifacts/cross-review/` 目录读取各阶段产物：
+
+- `artifacts/cross-review/reviews/claude-r1.md` / `gpt-r1.md`
+- `artifacts/cross-review/crosscheck/` 下的交叉确认产物
+- `artifacts/cross-review/fix/` 下的修复产物
+- `artifacts/cross-review/verify/` 下的验证产物
+
+从 `state/` 读取共享上下文：
+
+```bash
+REPO=$(cat "$CR_WORKSPACE/state/repo")
+PR_NUMBER=$(cat "$CR_WORKSPACE/state/pr-number")
+BASE=$(cat "$CR_WORKSPACE/state/base")
+BRANCH=$(cat "$CR_WORKSPACE/state/branch")
 ```
 
 ### 2. 生成汇总 + inline comments
 
 **注意**：仅在此阶段允许 Orchestrator 读取代码（用于 inline comments）。
-
-```bash
-BASE=$(cat "$CR_WORKSPACE/state/base")
-BRANCH=$(cat "$CR_WORKSPACE/state/branch")
-```
 
 **⚠️ 重要：仅读取与已确认 findings 相关的文件 diff，不要读取全量 diff！**
 
@@ -84,11 +93,11 @@ git diff "origin/$BASE...origin/$BRANCH" -- path/to/relevant-file.py
 <details>
 <summary>Session Info</summary>
 
-从 `hive status -t "$CR_TEAM"` 获取 agent session ID，从 state 文件获取 orchestrator session：
+从 `hive who`（或 `hive status`）读取 team presence 里的 `sessionId`；`hive status-show` 只用于 workflow 状态和 artifact 元数据：
 
-- Orchestrator: `$(cat "$CR_WORKSPACE/state/orch-session")`
-- Claude: `{sessionId from status}` (model: `$CR_MODEL_CLAUDE`)
-- GPT: `{sessionId from status}` (model: `$CR_MODEL_GPT`)
+- Orchestrator: `{TEAM_STATUS.agents.orchestrator.sessionId}`
+- Claude: `{TEAM_STATUS.agents.claude.sessionId}` (model: `$CR_MODEL_CLAUDE`)
+- GPT: `{TEAM_STATUS.agents.gpt.sessionId}` (model: `$CR_MODEL_GPT`)
 - Team: `$CR_TEAM`
 - Workspace: `$CR_WORKSPACE`
 </details>
@@ -145,28 +154,80 @@ Useful? React with 👍 / 👎.
 
 这是整个 pipeline 中**唯一一次**发布 PR 评论。
 
-```bash
-REPO=$(cat "$CR_WORKSPACE/state/repo")
-PR_NUMBER=$(cat "$CR_WORKSPACE/state/pr-number")
-```
+不要再使用 `hive comment`；这里直接使用 `gh`。
 
 #### 有已修复的 findings → 一条 PR review（summary + inline comments）
 
 ```bash
-hive comment review-post "$SUMMARY_BODY" "$INLINE_COMMENTS_JSON" --workspace "$CR_WORKSPACE"
+SUMMARY_FILE=$(mktemp)
+INLINE_FILE=$(mktemp)
+printf '%s\n' "$SUMMARY_BODY" > "$SUMMARY_FILE"
+printf '%s\n' "$INLINE_COMMENTS_JSON" > "$INLINE_FILE"
+
+REVIEW_ID=$(python3 - "$REPO" "$PR_NUMBER" "$SUMMARY_FILE" "$INLINE_FILE" <<'PY'
+import json
+import pathlib
+import subprocess
+import sys
+
+repo, pr, summary_path, comments_path = sys.argv[1:]
+payload = {
+    "body": pathlib.Path(summary_path).read_text(),
+    "event": "COMMENT",
+    "comments": json.loads(pathlib.Path(comments_path).read_text()),
+}
+proc = subprocess.run(
+    ["gh", "api", f"/repos/{repo}/pulls/{pr}/reviews", "--method", "POST", "--input", "-"],
+    input=json.dumps(payload),
+    text=True,
+    capture_output=True,
+    check=True,
+)
+print(json.loads(proc.stdout)["id"])
+PY
+)
+
+rm -f "$SUMMARY_FILE" "$INLINE_FILE"
 ```
 
 #### 无 findings 或全部 Skip → 一条普通评论
 
 ```bash
-SUMMARY_NODE_ID=$(hive comment post "$SUMMARY_BODY" --workspace "$CR_WORKSPACE")
-echo "$SUMMARY_NODE_ID" > "$CR_WORKSPACE/comments/cr-summary.id"
+SUMMARY_FILE=$(mktemp)
+printf '%s\n' "$SUMMARY_BODY" > "$SUMMARY_FILE"
+
+COMMENT_ID=$(python3 - "$REPO" "$PR_NUMBER" "$SUMMARY_FILE" <<'PY'
+import json
+import pathlib
+import subprocess
+import sys
+
+repo, pr, summary_path = sys.argv[1:]
+payload = {"body": pathlib.Path(summary_path).read_text()}
+proc = subprocess.run(
+    ["gh", "api", f"/repos/{repo}/issues/{pr}/comments", "--method", "POST", "--input", "-"],
+    input=json.dumps(payload),
+    text=True,
+    capture_output=True,
+    check=True,
+)
+print(json.loads(proc.stdout)["id"])
+PY
+)
+
+rm -f "$SUMMARY_FILE"
 ```
 
 ### 4. 清理并完成
 
 ```bash
-echo "done" > "$CR_WORKSPACE/state/stage"
+SUMMARY_COMMENT_ID="${REVIEW_ID:-$COMMENT_ID}"
+
+hive status-set done "cross review summary posted" \
+  --agent orchestrator \
+  --workspace "$CR_WORKSPACE" \
+  --meta cr.stage=5 \
+  --meta cr.summary.comment_id="$SUMMARY_COMMENT_ID"
 
 hive delete "$CR_TEAM"
 ```

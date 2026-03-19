@@ -1,75 +1,21 @@
 # 阶段 4: 修复 - Agent
 
-修复交叉确认中确认的问题。
+执行修复、提交、推送，并通过 status 发布 fix 分支与产物路径。
 
 ## 步骤
 
-1. 创建修复分支
-2. 修复问题
-3. 提交代码
-4. 推送
-5. 写入结果文件
+1. 收到 orchestrator 发来的 `<HIVE ...>` 消息后，读取其中给出的 fix request artifact path
+2. 读取 fix request artifact，确认要修的问题和输出路径
+3. 创建 fix branch、修改代码、提交、推送
+4. 写 fix summary artifact
+5. 发布状态
 
----
-
-## 1. 创建修复分支
-
-格式: `cr/pr{NUMBER}-{简要描述}`
+## 完成后发布状态
 
 ```bash
-PR_NUMBER=$(cat "$CR_WORKSPACE/state/pr-number")
-BRANCH="cr/pr${PR_NUMBER}-{简要语义化描述}"
-git checkout -b "$BRANCH"
-echo "$BRANCH" > "$CR_WORKSPACE/state/s4-branch"
+hive status-set done "fix ready"           --workspace "$HIVE_WORKSPACE"           --meta cr.stage=4           --meta cr.fix=done           --meta cr.fix.branch=<fix-branch>           --meta cr.artifact=<fix-summary-artifact-path>
 ```
 
----
+不要再额外执行 `hive send orchestrator "... fix ready"`；orchestrator 会通过 `hive wait-status` + `hive status-show` 读取 fix branch 和 artifact。只有需要澄清、报告 blocker 或主动请求另一位 agent 做 peer review 时才发 `hive send`。
 
-## 2. 修复问题
-
-根据任务文件中列出的问题进行修复。
-
----
-
-## 3. 提交代码
-
-```bash
-git add -A
-git commit -m 'fix(cr): ...'
-```
-
----
-
-## 4. 推送
-
-```bash
-# 安全检查
-[[ "$BRANCH" == "main" || "$BRANCH" == "master" ]] && echo "ERROR: Cannot push to main" && exit 1
-git push origin "$BRANCH" --force
-```
-
----
-
-## 5. 切回 PR 分支并写入结果
-
-```bash
-BRANCH_PR=$(cat "$CR_WORKSPACE/state/branch")
-git checkout "$BRANCH_PR"
-```
-
-将修复摘要写入 `$CR_WORKSPACE/results/claude-fix.md`，格式：
-
-```markdown
-## Fix Summary
-
-### Changes
-**Branch**: {branch}
-**Commit**: {short_hash}
-
-{修复说明}
-
-### Files Changed
-{文件列表}
-```
-
-然后创建 sentinel：`touch $CR_WORKSPACE/results/claude-fix.done`
+**注意**：推送前必须确认不是 `main/master`。

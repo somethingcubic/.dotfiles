@@ -31,21 +31,21 @@ elif b'command.length>50' in data:
 else:
     results['mod2'] = 'unknown'
 
-# mod3+mod5: 输出行数 (VAR=4/99,VAR2=5,VAR3=200)
-if re.search(V + rb'=99,' + V + rb'=5,' + V + rb'=200', data):
+# mod3+mod5: 输出行数 (VAR=VAR?8:4 / VAR=99||4)
+if re.search(V + rb'=99\|\|4', data):
     results['mod3'] = 'modified'
     results['mod5'] = 'modified'
-elif re.search(V + rb'=4,' + V + rb'=5,' + V + rb'=200', data):
+elif re.search(V + rb'=' + V + rb'\?8:4', data):
     results['mod3'] = 'original'
     results['mod5'] = 'original'
 else:
     results['mod3'] = 'unknown'
     results['mod5'] = 'unknown'
 
-# mod4: diff行数
-if re.search(rb'var ' + V + rb'=99,' + V + rb',', data):
+# mod4: diff行数 (var VAR=20/99,VAR)
+if re.search(rb'var ' + V + rb'=99,' + V, data):
     results['mod4'] = 'modified'
-elif re.search(rb'var ' + V + rb'=20,' + V + rb',', data):
+elif re.search(rb'var ' + V + rb'=20,' + V, data):
     results['mod4'] = 'original'
 else:
     results['mod4'] = 'unknown'
@@ -69,13 +69,7 @@ def _mod6_detect():
 
 results['mod6'] = _mod6_detect()
 
-# mod7: mission 门控
-if b'statsigName:"enable_extra_mod0",defaultValue:!0' in data:
-    results['mod7'] = 'modified'
-elif b'statsigName:"enable_extra_mode",defaultValue:!1' in data:
-    results['mod7'] = 'original'
-else:
-    results['mod7'] = 'unknown'
+# mod7: 已移除 (v0.71.0 起 mission 门控默认开放)
 
 # mod8: mission 模型白名单
 def _mod8_detect():
@@ -93,16 +87,37 @@ def _mod8_detect():
 
 results['mod8'] = _mod8_detect()
 
-# mod9: custom model effort 级别
-if b'T.provider=="openai"' in data and b'["off","low","medium","high","max"]' in data:
+# mod9: custom model effort 级别 (zsH + lB 两个函数)
+# 用 regex 检测: VAR.provider=="openai"?["none","low","medium","high","xhigh"] 出现次数
+mod9_pa_count = len(re.findall(rb'\.provider=="openai"\?\["none","low","medium","high","xhigh"\]', data))
+mod9_orig_pat = rb'supportedReasoningEfforts:' + V + rb'\?\["off","low","medium","high"\]:\["none"\],defaultReasoningEffort:' + V + rb'\.reasoningEffort'
+mod9_orig_count = len(re.findall(mod9_orig_pat, data))
+
+if mod9_pa_count >= 2:
     results['mod9'] = 'modified'
-elif b'supportedReasoningEfforts:L?["off","low","medium","high"]:["none"]' in data:
+elif mod9_pa_count == 0 and mod9_orig_count >= 2:
     results['mod9'] = 'original'
+elif mod9_pa_count >= 1:
+    results['mod9'] = 'partial'
 else:
     results['mod9'] = 'unknown'
 
+# mod10: custom model /fast 支持
+mod10_has_session_fast = b'sessionSettings.fast===FH' in data
+mod10_has_command = b'L.sessionSettings.fast=C?D:""' in data
+mod10_old_command = b'Invalid argument "${H[0]}". Usage: /fast, /fast on, or /fast off' in data
+
+if mod10_has_session_fast and mod10_has_command:
+    results['mod10'] = 'modified'
+elif not mod10_has_session_fast and mod10_old_command:
+    results['mod10'] = 'original'
+elif mod10_has_session_fast or mod10_has_command:
+    results['mod10'] = 'partial'
+else:
+    results['mod10'] = 'unknown'
+
 # 输出
-total = 9
+total = 9  # mod7 已移除，包含 mod10
 mod_count = sum(1 for v in results.values() if v == 'modified')
 orig_count = sum(1 for v in results.values() if v == 'original')
 
@@ -207,8 +222,8 @@ else:
                 ve = mission.get('validationWorkerReasoningEffort', '')
                 print(f"    Worker:    {wm} ({we})" + (" ⚠ 不在 customModels 中" if wm and wm not in model_ids else ""))
                 print(f"    Validator: {vm} ({ve})" + (" ⚠ 不在 customModels 中" if vm and vm not in model_ids else ""))
-            elif results.get('mod7') == 'modified' or results.get('mod8') == 'modified':
-                print(f"\n  ⚠ mod7/mod8 已启用但缺少 missionModelSettings")
+            elif results.get('mod8') == 'modified':
+                print(f"\n  ⚠ mod8 已启用但缺少 missionModelSettings")
                 print(f"    → 建议配置 workerModel / validationWorkerModel 指向 custom model")
 
             if not warnings:

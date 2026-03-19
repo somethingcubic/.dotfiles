@@ -6,106 +6,42 @@
 
 ## 概述
 
-协调 Claude 修复和 GPT 验证，最多 5 轮。
-
-```
-Claude 修复 → 推送 → GPT 验证 → 通过/失败 → (失败则重复)
-```
+协调 Claude 修复和 GPT 验证，最多 5 轮。通信仍然走直接 `<HIVE ...>` 消息 + `status`。
 
 ## 执行
 
 ```bash
-echo "4" > "$CR_WORKSPACE/state/stage"
-echo "1" > "$CR_WORKSPACE/state/s4-round"
+mkdir -p "$CR_WORKSPACE/artifacts/cross-review/fix" "$CR_WORKSPACE/artifacts/cross-review/verify"
+hive status-set running "stage 4 fix/verify" --agent orchestrator --workspace "$CR_WORKSPACE" --meta cr.stage=4 --meta cr.fix.round=1
 ```
 
-### 通知 Claude 修复
+## Claude 修复
+
+1. 写 fix request artifact，带上需要修复的问题和目标输出路径
+2. 发送：
 
 ```bash
-REPO=$(cat "$CR_WORKSPACE/state/repo")
-PR_NUMBER=$(cat "$CR_WORKSPACE/state/pr-number")
-BASE=$(cat "$CR_WORKSPACE/state/base")
-BRANCH=$(cat "$CR_WORKSPACE/state/branch")
-
-FIX_ISSUES=$(cat "$CR_WORKSPACE/results/crosscheck-summary.md" 2>/dev/null || \
-             cat "$CR_WORKSPACE/results/claude-r1.md")
-
-cat > "$CR_WORKSPACE/tasks/claude-fix.md" << 'TASK'
-<system-instruction>
-你是 claude，cross-review 修复者。
-</system-instruction>
-
-# Fix Task
-
-Read ~/.factory/skills/cross-review/stages/4-fix-agent.md for guidelines.
-
-## Issues to Fix
-TASK
-
-printf '%s\n' "$FIX_ISSUES" >> "$CR_WORKSPACE/tasks/claude-fix.md"
-
-cat >> "$CR_WORKSPACE/tasks/claude-fix.md" << TASK_FOOTER
-
-## Context
-- Repo: $REPO
-- PR: #$PR_NUMBER ($BRANCH → $BASE)
-- Workspace: $CR_WORKSPACE
-- Your agent name: claude
-
-## Required Output
-1. Create fix branch, make changes, commit, push
-2. Write fix summary to: $CR_WORKSPACE/results/claude-fix.md
-3. When done: touch $CR_WORKSPACE/results/claude-fix.done
-TASK_FOOTER
-
-hive type claude "Read and execute $CR_WORKSPACE/tasks/claude-fix.md" -t "$CR_TEAM"
+hive send claude "Read the attached fix request artifact and implement it."           --from orchestrator           --artifact <fix-request-artifact>           -t "$CR_TEAM" -w "$CR_WORKSPACE"
 ```
 
-### 等待修复 → 通知 GPT 验证
+3. 等待 Claude：
 
 ```bash
-hive wait claude fix -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600
-
-FIX_RESULT=$(cat "$CR_WORKSPACE/results/claude-fix.md")
-FIX_BRANCH=$(cat "$CR_WORKSPACE/state/s4-branch")
-
-cat > "$CR_WORKSPACE/tasks/gpt-verify.md" << 'TASK'
-<system-instruction>
-你是 gpt，cross-review 验证者。
-</system-instruction>
-
-# Verify Task
-
-Read ~/.factory/skills/cross-review/stages/4-verify-agent.md for guidelines.
-
-## Fix Details
-TASK
-
-printf '%s\n' "$FIX_RESULT" >> "$CR_WORKSPACE/tasks/gpt-verify.md"
-
-cat >> "$CR_WORKSPACE/tasks/gpt-verify.md" << TASK_FOOTER
-
-## Context
-- Fix branch: $FIX_BRANCH
-- Base: $BASE
-- Workspace: $CR_WORKSPACE
-- Your agent name: gpt
-
-## Required Output
-1. Review the fix diff
-2. Write result to: $CR_WORKSPACE/results/gpt-verify.md
-3. When done: touch $CR_WORKSPACE/results/gpt-verify.done
-TASK_FOOTER
-
-hive type gpt "Read and execute $CR_WORKSPACE/tasks/gpt-verify.md" -t "$CR_TEAM"
+hive wait-status claude -t "$CR_TEAM" -w "$CR_WORKSPACE" --state done --meta cr.stage=4 --meta cr.fix=done --timeout 600
 ```
 
-### 处理验证结果
+## GPT 验证
+
+1. 从 Claude 的 status 里读取 `cr.fix.branch` 和 `cr.artifact`
+2. 写 verify request artifact
+3. 发送给 GPT
+4. 等待 GPT：
 
 ```bash
-hive wait gpt verify -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 300
+hive wait-status gpt -t "$CR_TEAM" -w "$CR_WORKSPACE" --state done --meta cr.stage=4 --timeout 300
 ```
 
-- 通过 → 阶段 5
-- 失败 + 轮数 < 5 → 增加轮数，重新修复
-- 失败 + 轮数 >= 5 → 阶段 5（标记修复未完成）
+5. 读取 GPT 的 `cr.verify` 元数据：
+   - `pass` → 阶段 5
+   - `fail` 且轮数 < 5 → 下一轮修复
+   - `fail` 且轮数 >= 5 → 阶段 5（标记未完成）

@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-03-19T00:13:06.097Z",
+  "sources": [
+    {
+      "name": "agent-browser",
+      "repo": "vercel-labs/agent-browser",
+      "ref": "main",
+      "source": "skills/agent-browser",
+      "target": "skills/agent-browser",
+      "commit": "757626f27c65603e4f837390408fe59a5fdc4bde"
+    },
+    {
+      "name": "pua",
+      "repo": "tanweai/pua",
+      "ref": "main",
+      "source": "skills/pua",
+      "target": "skills/pua",
+      "commit": "5f433294a098aac4bdc96a1e098f0e33c9661242"
+    },
+    {
+      "name": "find-skills",
+      "repo": "vercel-labs/skills",
+      "ref": "main",
+      "source": "skills/find-skills",
+      "target": "skills/find-skills",
+      "commit": "fc3b8b8d68bd640028d2ceedaa5fe2fdf129d05a"
+    },
+    {
+      "name": "hive",
+      "repo": "notdp/hive",
+      "ref": "main",
+      "source": "skills/hive",
+      "target": "skills/hive",
+      "commit": "80b1b65863aae5e3c4ecc278dff12acc9fb7c313"
+    },
+    {
+      "name": "react-best-practices",
+      "repo": "vercel-labs/agent-skills",
+      "ref": "main",
+      "source": "skills/react-best-practices",
+      "target": "skills/react-best-practices",
+      "commit": "9aec8ee6aaf702e49312a071e672f1c1b7b7e948"
+    },
+    {
+      "name": "react-doctor",
+      "repo": "millionco/react-doctor",
+      "ref": "main",
+      "source": "skills/react-doctor",
+      "target": "skills/react-doctor",
+      "commit": "ec4a41fd827c29d79f9b27a588cde598e054d059"
+    },
+    {
+      "name": "shadcn-ui",
+      "repo": "google-labs-code/stitch-skills",
+      "ref": "main",
+      "source": "skills/shadcn-ui",
+      "target": "skills/shadcn-ui",
+      "commit": "ad0b5cc5d5c3569e12a3105b0dee7409c3227e1b"
+    },
+    {
+      "name": "frontend-design",
+      "repo": "anthropics/skills",
+      "ref": "main",
+      "source": "skills/frontend-design",
+      "target": "skills/frontend-design",
+      "commit": "b0cbd3df1533b396d281a6886d5132f623393a9c"
+    }
+  ]
+}

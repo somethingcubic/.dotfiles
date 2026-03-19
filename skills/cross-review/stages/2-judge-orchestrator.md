@@ -8,35 +8,29 @@
 
 分析 Claude 和 GPT 的审查结果，判断是否达成共识。
 
-## 执行
+## 输入
+
+先读取两位 agent 的 published status，拿到 review artifact path：
 
 ```bash
-echo "2" > "$CR_WORKSPACE/state/stage"
-
-# 读取两份审查结果
-CLAUDE_RESULT=$(cat "$CR_WORKSPACE/results/claude-r1.md")
-GPT_RESULT=$(cat "$CR_WORKSPACE/results/gpt-r1.md")
+CLAUDE_STATUS=$(hive status-show --workspace "$CR_WORKSPACE" --agent claude)
+GPT_STATUS=$(hive status-show --workspace "$CR_WORKSPACE" --agent gpt)
 ```
 
-## 分析维度
-
-- 是否发现问题？
-- 发现了哪些问题？
-- 问题的严重程度如何？
-- 两者的发现是否有交集？
+然后读取各自的 artifact。
 
 ## 判断结果
 
-| 结果          | 条件                    | 下一阶段               |
-| ------------- | ----------------------- | ---------------------- |
-| `both_ok`     | 双方都没发现问题        | → 阶段 5（汇总）       |
-| `same_issues` | 双方发现相同/相似的问题 | → 阶段 4（修复）       |
-| `divergent`   | 结论有分歧              | → 阶段 3（交叉确认）   |
+| 结果 | 条件 | 下一阶段 |
+| --- | --- | --- |
+| `both_ok` | 双方都没发现问题 | → 阶段 5 |
+| `same_issues` | 双方发现相同/相似的问题 | → 阶段 4 |
+| `divergent` | 结论有分歧 | → 阶段 3 |
 
 ## 记录结果
 
 ```bash
-echo "both_ok" > "$CR_WORKSPACE/state/s2-result"    # 或 same_issues / divergent
+hive status-set done "stage 2 judged"           --agent orchestrator           --workspace "$CR_WORKSPACE"           --meta cr.stage=2           --meta cr.judge.result=both_ok
 ```
 
-然后读取对应阶段的 orchestrator 文档继续执行。
+将 `both_ok` 替换成实际结果，然后进入对应阶段。

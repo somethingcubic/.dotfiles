@@ -1,30 +1,31 @@
 # 阶段 1: PR 审查 - Agent
 
-审查 PR，写入结果文件。
+审查 PR，写入 review artifact，然后通过 `hive status-set` 发布完成状态。
 
 ## 步骤
 
-1. 读取项目 REVIEW.md（如有）
-2. 获取 diff
-3. 审查代码
-4. 写入结果文件 + sentinel
+1. 收到 orchestrator 发来的 `<HIVE ...>` 消息后，读取其中给出的 review request artifact path
+2. 读取 request 里给出的 artifact path 和上下文
+3. 读取项目 `REVIEW.md`（如有）
+4. 获取 diff
+5. 审查代码
+6. 写入 review artifact
+7. 发布完成状态
 
 ---
 
-## 1. 获取 diff
+## 获取 diff
 
 ```bash
-BASE=$(cat "$CR_WORKSPACE/state/base")
+BASE=$(cat "$HIVE_WORKSPACE/state/base")
 git diff "origin/$BASE...HEAD"
 ```
 
 ---
 
-## 2. 审查代码
+## 发现多少问题
 
-### 发现多少问题
-
-输出所有作者知道后会修复的问题。如果没有值得修复的发现，优先输出"无问题"。
+输出所有作者知道后会修复的问题。如果没有值得修复的发现，优先输出“无问题”。
 
 ### Bug 判定标准
 
@@ -39,29 +40,11 @@ git diff "origin/$BASE...HEAD"
 7. 必须能识别受影响的具体代码位置
 8. 明显不是有意为之
 
-### 评论风格
-
-- 清楚说明为什么是问题
-- 适当传达严重程度
-- 简洁 — 每个发现最多 1 段
-- 代码块最多 3 行
-- 客观语气
-- 忽略琐碎样式问题
-
-### 优先级
-
-- 🔴 [P0] - 立即修复，阻塞发布
-- 🟠 [P1] - 紧急，下个周期处理
-- 🟡 [P2] - 正常，后续修复
-- 🟢 [P3] - 低优先级
-
 ---
 
-## 3. 写入结果文件
+## 输出格式
 
-将审查结果写入 `$CR_WORKSPACE/results/{AGENT}-r1.md`。
-
-格式：
+将结果写入 request 指定的 review artifact path：
 
 ```markdown
 ## {AGENT} Review
@@ -73,10 +56,10 @@ git diff "origin/$BASE...HEAD"
 (✅ No issues found 或 🔴/🟠/🟡/🟢 + 最高优先级)
 ```
 
-**最后一步**：创建 sentinel 文件
+完成后发布状态：
 
 ```bash
-touch "$CR_WORKSPACE/results/${AGENT}-r1.done"
+hive status-set done "round 1 review complete"           --workspace "$HIVE_WORKSPACE"           --meta cr.stage=1           --meta cr.review=done           --meta cr.artifact=<review-artifact-path>
 ```
 
-⚠️ **必须在所有工作完成后才创建 sentinel**。Orchestrator 靠此文件判断你已完成。
+不要再额外执行 `hive send orchestrator "... complete"`；orchestrator 会通过 `hive wait-status` + `hive status-show` 读取结果。只有需要澄清、blocker 或人工介入时才发 `hive send`。

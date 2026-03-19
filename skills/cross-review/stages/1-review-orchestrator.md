@@ -3,44 +3,36 @@
 ## 前置条件
 
 - 调用方已通过 `hive create --workspace ... --state ...` 初始化 workspace
-- `$CR_WORKSPACE` 和 `$CR_TEAM` 环境变量已设置
-- hive team 已创建（`hive create "$CR_TEAM" ...`）
+- `CR_WORKSPACE` / `HIVE_WORKSPACE` 和 `CR_TEAM` 环境变量已设置
+- hive team 已创建
 
 ## 禁止操作
 
-- 不要重新执行 `hive create`（调用方已完成）
+- 不要重新执行 `hive create`
 - 不要直接操作 tmux
 
 ## 概述
 
-启动 Claude 和 GPT 并行审查 PR。
+启动 Claude 和 GPT 并行审查 PR，并通过直接 `<HIVE ...>` 消息 + `status` 管理任务。`cross-review` 作为 workflow skill 由 Hive 显式加载。
 
 ## 执行
 
 ```bash
-echo "1" > "$CR_WORKSPACE/state/stage"
+export HIVE_WORKSPACE="${HIVE_WORKSPACE:-$CR_WORKSPACE}"
+mkdir -p "$CR_WORKSPACE/artifacts/cross-review/requests" "$CR_WORKSPACE/artifacts/cross-review/reviews"
 
-# 检测 orchestrator 自身的 session ID（必须在 spawn 前执行，此时最新 session 就是自己）
-ORCH_SESSION=$(python3 -c "
-import os, pathlib
-cwd = os.getcwd()
-d = pathlib.Path.home() / '.factory' / 'sessions' / ('-' + cwd.lstrip('/').replace('/', '-'))
-f = max(d.glob('*.settings.json'), key=lambda p: p.stat().st_birthtime)
-print(f.name.removesuffix('.settings.json'))
-")
-echo "$ORCH_SESSION" > "$CR_WORKSPACE/state/orch-session"
+hive status-set running "stage 1 parallel review"           --agent orchestrator           --workspace "$CR_WORKSPACE"           --meta cr.stage=1
 
 MODEL_CLAUDE="${CR_MODEL_CLAUDE:-custom:Claude-Opus-4.6-0}"
 MODEL_GPT="${CR_MODEL_GPT:-custom:GPT-5.4-1}"
 
-# 启动两个 Agent
-hive spawn claude -t "$CR_TEAM" -m "$MODEL_CLAUDE" --skill cross-review -e "CR_WORKSPACE=$CR_WORKSPACE"
-hive spawn gpt -t "$CR_TEAM" -m "$MODEL_GPT" --skill cross-review -e "CR_WORKSPACE=$CR_WORKSPACE"
+hive spawn claude -t "$CR_TEAM" -m "$MODEL_CLAUDE" --workflow cross-review \
+  -e "HIVE_WORKSPACE=$CR_WORKSPACE" -e "CR_WORKSPACE=$CR_WORKSPACE"
+hive spawn gpt -t "$CR_TEAM" -m "$MODEL_GPT" --workflow cross-review \
+  -e "HIVE_WORKSPACE=$CR_WORKSPACE" -e "CR_WORKSPACE=$CR_WORKSPACE"
 ```
 
 ## 发送任务
-
-为每个 Agent 写入任务文件，包含必要上下文：
 
 ```bash
 REPO=$(cat "$CR_WORKSPACE/state/repo")
@@ -49,44 +41,32 @@ BASE=$(cat "$CR_WORKSPACE/state/base")
 BRANCH=$(cat "$CR_WORKSPACE/state/branch")
 
 for AGENT in claude gpt; do
-  cat > "$CR_WORKSPACE/tasks/${AGENT}-review.md" << EOF
-<system-instruction>
-你是 ${AGENT}，cross-review 审查者。
-⛔ FIRST STEP: load skill: cross-review
-</system-instruction>
+  REQUEST="$CR_WORKSPACE/artifacts/cross-review/requests/${AGENT}-review.md"
+  RESULT="$CR_WORKSPACE/artifacts/cross-review/reviews/${AGENT}-r1.md"
 
+  cat > "$REQUEST" << EOF
 # PR Review Task
 
 You are reviewing PR #$PR_NUMBER in $REPO ($BRANCH → $BASE).
 
 ## Instructions
-
-Read ~/.factory/skills/cross-review/stages/1-review-agent.md for detailed review guidelines.
-
-## Context
-
-- Repository: $REPO
-- PR: #$PR_NUMBER
-- Branch: $BRANCH → $BASE
-- Workspace: $CR_WORKSPACE
-- Your agent name: $AGENT
-
-## Required Output
-
-1. Write review findings to: $CR_WORKSPACE/results/${AGENT}-r1.md
-2. When FULLY complete, run: touch $CR_WORKSPACE/results/${AGENT}-r1.done
+1. Read ~/.factory/skills/cross-review/stages/1-review-agent.md
+2. Perform the review independently
+3. Write your review artifact to: $RESULT
+4. When fully complete, publish:
+   hive status-set done "round 1 review complete"              --workspace "$CR_WORKSPACE"              --meta cr.stage=1              --meta cr.review=done              --meta cr.artifact=$RESULT
 EOF
 
-  hive type "$AGENT" "Read and execute $CR_WORKSPACE/tasks/${AGENT}-review.md" -t "$CR_TEAM"
+  hive send "$AGENT" "Read the attached review request artifact and execute it."             --from orchestrator             --artifact "$REQUEST"             --team "$CR_TEAM"             --workspace "$CR_WORKSPACE"
 done
 ```
 
 ## 等待
 
 ```bash
-hive wait claude r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600 &
-hive wait gpt r1 -t "$CR_TEAM" --workspace "$CR_WORKSPACE" --timeout 600 &
+hive wait-status claude -t "$CR_TEAM" -w "$CR_WORKSPACE" --state done --meta cr.stage=1 --meta cr.review=done --timeout 600 &
+hive wait-status gpt -t "$CR_TEAM" -w "$CR_WORKSPACE" --state done --meta cr.stage=1 --meta cr.review=done --timeout 600 &
 wait
 ```
 
-两个 Agent 都完成后，读取结果并进入阶段 2。
+两个 Agent 都完成后，进入阶段 2。

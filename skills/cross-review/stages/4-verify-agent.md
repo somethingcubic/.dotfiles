@@ -4,52 +4,31 @@
 
 ## 步骤
 
-1. 查看修复 diff
-2. 验证代码
-3. 写入结果文件
+1. 收到 orchestrator 发来的 `<HIVE ...>` 消息后，读取其中给出的 verify request artifact path
+2. 读取 verify request artifact，拿到 fix branch 和 fix summary artifact
+3. 查看修复 diff
+4. 验证代码
+5. 写 verify artifact
+6. 发布状态
 
----
-
-## 1. 查看修复
+## 查看修复
 
 ```bash
-FIX_BRANCH=$(cat "$CR_WORKSPACE/state/s4-branch")
-BASE=$(cat "$CR_WORKSPACE/state/base")
-git fetch origin "$FIX_BRANCH"
-git diff "origin/$BASE...origin/$FIX_BRANCH"
+git fetch origin <fix-branch>
+BASE=$(cat "$HIVE_WORKSPACE/state/base")
+git diff "origin/$BASE...origin/<fix-branch>"
 ```
 
----
+## 输出要求
 
-## 2. 验证
+verify artifact 第一行必须是 `PASS` 或 `FAIL`。
 
-检查：
-- 问题是否真正解决
-- 是否引入新问题
-- 代码质量是否符合规范
+完成后发布状态：
 
----
-
-## 3. 写入结果
-
-将验证结果写入 `$CR_WORKSPACE/results/gpt-verify.md`。
-
-结果第一行必须是 `PASS` 或 `FAIL`（Orchestrator 据此判断下一步）。
-
-```markdown
-PASS
-
-### Details
-{验证说明}
+```bash
+hive status-set done "verify complete"           --workspace "$HIVE_WORKSPACE"           --meta cr.stage=4           --meta cr.verify=pass           --meta cr.artifact=<verify-artifact-path>
 ```
 
-或：
+若结论为 FAIL，把 `pass` 改成 `fail`。
 
-```markdown
-FAIL
-
-### Details
-{失败原因}
-```
-
-最后创建 sentinel：`touch $CR_WORKSPACE/results/gpt-verify.done`
+不要再额外执行 `hive send orchestrator "... verify complete"`；orchestrator 会通过 `hive wait-status` + `hive status-show` 读取结果。只有需要澄清失败原因、报告 blocker 或请求额外人工判断时才发 `hive send`。
