@@ -131,39 +131,39 @@ if has_regex(data, legacy_pat_j) and has_regex(data, legacy_pat_fast):
     total_diff += diff
 else:
     current_j_old = (
-        b'let FH=NH?.isSpecMode??H.isSpecMode(),_H=NH?.modelId??(FH?H.getSpecModeModel():H.getModel()),'
-        b'KH=NH?.reasoningEffort??(FH?H.getSpecModeReasoningEffort():H.getReasoningEffort()),EH=mR().getCustomModels(),'
-        b'wH=SK(_H,EH)??null,LH=wH?wH.model:_H,jH=yB(_H).modelProvider,VH,PH=wH?AJH(wH.model):_H;'
-        b'if(PH)try{VH=DY({modelId:PH})}catch{}return{model:LH,provider:jH,apiModelProvider:VH?.apiModelProvider,config:VH,customModel:wH,isSpecMode:FH,reasoningEffort:KH}'
+        b'let ZH=XH?.isSpecMode??H.isSpecMode(),_H=XH?.modelId??(ZH?H.getSpecModeModel():H.getModel()),'
+        b'KH=XH?.reasoningEffort??(ZH?H.getSpecModeReasoningEffort():H.getReasoningEffort()),QH=lR().getCustomModels(),'
+        b'wH=vK(_H,QH)??null,LH=wH?wH.model:_H,jH=VB(_H).modelProvider,VH,MH=wH?OJH(wH.model):_H;'
+        b'if(MH)try{VH=XY({modelId:MH})}catch{}return{model:LH,provider:jH,apiModelProvider:VH?.apiModelProvider,config:VH,customModel:wH,isSpecMode:ZH,reasoningEffort:KH}'
     )
     current_j_new = (
-        b'let _H=NH?.isSpecMode??H.isSpecMode(),FH=NH?.modelId??(_H?H.getSpecModeModel():H.getModel()),'
-        b'KH=NH?.reasoningEffort??(_H?H.getSpecModeReasoningEffort():H.getReasoningEffort()),EH=mR().getCustomModels(),'
-        b'QH=iT().sessionSettings.fast===FH,wH=SK(FH,EH)??null,LH=wH?wH.model:FH,jH=yB(FH).modelProvider,VH,'
-        b'PH=wH?(QH?H$9(wH.model)??AJH(wH.model):AJH(wH.model)):FH;if(PH)try{VH=DY({modelId:PH})}catch{}'
+        b'let _H=XH?.isSpecMode??H.isSpecMode(),ZH=XH?.modelId??(_H?H.getSpecModeModel():H.getModel()),'
+        b'KH=XH?.reasoningEffort??(_H?H.getSpecModeReasoningEffort():H.getReasoningEffort()),QH=lR().getCustomModels(),'
+        b'W0=bT().sessionSettings.fast===ZH,wH=vK(ZH,QH)??null,LH=wH?wH.model:ZH,jH=VB(ZH).modelProvider,VH,'
+        b'MH=wH?(W0?g79(wH.model)??OJH(wH.model):OJH(wH.model)):ZH;if(MH)try{VH=XY({modelId:MH})}catch{}'
         b'return{model:LH,provider:jH,apiModelProvider:VH?.apiModelProvider,config:VH,customModel:wH,isSpecMode:_H,reasoningEffort:KH}'
     )
     current_fast_old = (
         b'execute:(H,T)=>{let{addMessage:R}=T,A=H[0]?.toLowerCase();if(A&&A!=="on"&&A!=="off")return '
-        b'qgH(R,`Invalid argument "${H[0]}". Usage: /fast, /fast on, or /fast off`),{handled:!0};'
-        b'let L=iT(),D=L.getModel(),C=!A||A==="on",h=!!oWR(D);if(C&&h){let Q=yB(D);return '
-        b'qgH(R,`Already in fast mode (${Q.shortDisplayName||D})`),{handled:!0}}'
-        b'if(!C&&!h){let Q=yB(D);return qgH(R,`Already using base model (${Q.shortDisplayName||D})`),{handled:!0}}'
-        b'let $=C?H$9(D):oWR(D);if(!$){let E=`No fast mode available for ${yB(D).shortDisplayName||D}`;'
-        b'return qgH(R,E),{handled:!0}}try{L.setModel($)}catch(Q){let E=Q instanceof Error?Q.message:"Failed to switch model";'
-        b'return qgH(R,E),{handled:!0}}let W=yB($);return qgH(R,`Switched to ${W.shortDisplayName||$}`),{handled:!0}}'
+        b'PgH(R,`Invalid argument "${H[0]}". Usage: /fast, /fast on, or /fast off`),{handled:!0};'
+        b'let L=bT(),D=L.getModel(),C=!A||A==="on",h=!!aQR(D);if(C&&h){let Q=VB(D);return '
+        b'PgH(R,`Already in fast mode (${Q.shortDisplayName||D})`),{handled:!0}}'
+        b'if(!C&&!h){let Q=VB(D);return PgH(R,`Already using base model (${Q.shortDisplayName||D})`),{handled:!0}}'
+        b'let $=C?g79(D):aQR(D);if(!$){let E=`No fast mode available for ${VB(D).shortDisplayName||D}`;'
+        b'return PgH(R,E),{handled:!0}}try{L.setModel($)}catch(Q){let E=Q instanceof Error?Q.message:"Failed to switch model";'
+        b'return PgH(R,E),{handled:!0}}let W=VB($);return PgH(R,`Switched to ${W.shortDisplayName||$}`),{handled:!0}}'
     )
     current_fast_new = (
         b'execute:(H,T)=>{let{addMessage:R}=T,A=H[0]?.toLowerCase();if(A&&A!=="on"&&A!=="off")return '
-        b'qgH(R,`Bad arg "${H[0]}". Use /fast [on|off]`),{handled:!0};'
-        b'let L=iT(),D=L.getModel(),C=!A||A==="on",B=D[6]===":",Q=yB(D),h=B?L.sessionSettings.fast===D:!!oWR(D),'
-        b'$=B?D:C?H$9(D):oWR(D);if(C&&h)return qgH(R,`Already fast (${Q.shortDisplayName||D})`),{handled:!0};'
-        b'if(!C&&!h)return qgH(R,`Already base (${Q.shortDisplayName||D})`),{handled:!0};'
-        b'if(B){if(C&&!H$9(Q.id))$=void 0;else L.sessionSettings.fast=C?D:"",'
+        b'PgH(R,`Bad arg "${H[0]}". Use /fast [on|off]`),{handled:!0};'
+        b'let L=bT(),D=L.getModel(),C=!A||A==="on",B=D[6]===":",Q=VB(D),h=B?L.sessionSettings.fast===D:!!aQR(D),'
+        b'$=B?D:C?g79(D):aQR(D);if(C&&h)return PgH(R,`Already fast (${Q.shortDisplayName||D})`),{handled:!0};'
+        b'if(!C&&!h)return PgH(R,`Already base (${Q.shortDisplayName||D})`),{handled:!0};'
+        b'if(B){if(C&&!g79(Q.id))$=void 0;else L.sessionSettings.fast=C?D:"",'
         b'L.currentSessionId&&L.saveSessionSettings({async:!0,shouldSyncToCloud:!0})}'
-        b'if(!$)return qgH(R,`No fast for ${Q.shortDisplayName||D}`),{handled:!0};'
-        b'try{B||L.setModel($)}catch(h){return qgH(R,h instanceof Error?h.message:"Switch failed"),{handled:!0}}'
-        b'return qgH(R,B?`Fast ${C?"on":"off"} (${Q.shortDisplayName||D})`:`Switched to ${yB($).shortDisplayName||$}`),{handled:!0}}'
+        b'if(!$)return PgH(R,`No fast for ${Q.shortDisplayName||D}`),{handled:!0};'
+        b'try{B||L.setModel($)}catch(h){return PgH(R,h instanceof Error?h.message:"Switch failed"),{handled:!0}}'
+        b'return PgH(R,B?`Fast ${C?"on":"off"} (${Q.shortDisplayName||D})`:`Switched to ${VB($).shortDisplayName||$}`),{handled:!0}}'
     )
 
     data, diff = replace_exact(data, current_j_old, current_j_new, 'j() custom fast 请求注入')
