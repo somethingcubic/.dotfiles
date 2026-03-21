@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-03-20T00:12:49.343Z",
+  "generatedAt": "2026-03-21T00:11:13.477Z",
   "sources": [
     {
       "name": "agent-browser",
@@ -8,7 +8,7 @@
       "ref": "main",
       "source": "skills/agent-browser",
       "target": "skills/agent-browser",
-      "commit": "2b3c5c26cdc26a6faea6767a59ade869815e241f"
+      "commit": "59b6e5a03486b04274109a565d5eebfec71106df"
     },
     {
       "name": "find-skills",
