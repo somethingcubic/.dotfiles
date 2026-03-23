@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-03-22T01:22:17.924Z",
+  "generatedAt": "2026-03-23T01:22:43.760Z",
   "sources": [
     {
       "name": "agent-browser",
@@ -8,7 +8,7 @@
       "ref": "main",
       "source": "skills/agent-browser",
       "target": "skills/agent-browser",
-      "commit": "84c6e6fd301a1b33059d05b6086655fadc2f3112"
+      "commit": "fb1e860b4e3cf05b042f1da689dc2ee39a61b4b0"
     },
     {
       "name": "pua",
@@ -16,7 +16,7 @@
       "ref": "main",
       "source": "skills/pua",
       "target": "skills/pua",
-      "commit": "12ebfd4516d313d4b8b7c3101c64168439234e15"
+      "commit": "39bc64997f1a8f7c735b55187df78354e8991663"
     },
     {
       "name": "find-skills",
@@ -64,7 +64,7 @@
       "ref": "main",
       "source": "skills/frontend-design",
       "target": "skills/frontend-design",
-      "commit": "b0cbd3df1533b396d281a6886d5132f623393a9c"
+      "commit": "887114fd09f8f24a7e6c907f9ee505348498ab6a"
     }
   ]
 }
