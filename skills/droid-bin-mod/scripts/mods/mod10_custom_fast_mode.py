@@ -1,18 +1,8 @@
 #!/usr/bin/env python3
-"""mod10: custom model 保持不变时支持 /fast (0 bytes)
+"""mod10: custom model /fast support
 
-目标:
-  - /fast on/off 对 custom model 生效
-  - 保持请求仍走 custom model 的 baseUrl/apiKey
-  - 不切到 Droid 内置模型
-
-实现:
-  1. /fast 命令对 custom model 改为写 sessionSettings.fast
-  2. 请求元信息函数 j() 在 custom model 且 sessionSettings.fast===当前模型时，
-     用底层 base model 的 fast variant 配置生成请求参数
-     - anthropic: speed="fast" + fast beta
-     - openai: service_tier="priority"
-  3. 针对旧版/0.80.0 两套二进制结构分别补丁，并通过描述字符串补偿回 0 bytes
+用正则模式匹配代码结构，自动适应混淆变量名变化。
+稳定锚点：字符串常量、方法名、代码结构模式。
 """
 import re
 import sys
@@ -23,189 +13,229 @@ from common import load_droid, save_droid, V
 data = load_droid()
 original_size = len(data)
 
-if b'sessionSettings.fast===FH' in data and b'L.sessionSettings.fast=C?D:""' in data:
+if b'.sessionSettings.fast=C?D:""' in data:
     print('mod10 已应用，跳过')
     sys.exit(0)
 
-def replace_exact(blob, old, new, name):
-    idx = blob.find(old)
-    if idx == -1:
-        raise ValueError(f'{name} 未找到! 可能版本不兼容')
-    blob = blob.replace(old, new, 1)
-    diff = len(new) - len(old)
-    print(f'{name}: {diff:+d} bytes')
-    return blob, diff
-
-
-def has_regex(blob, pattern):
-    return re.search(pattern, blob) is not None
-
-
-def replace_regex(blob, pattern, replacer, name):
-    m = re.search(pattern, blob)
-    if not m:
-        raise ValueError(f'{name} 未找到! 可能版本不兼容')
-    old = m.group(0)
-    new = replacer(m)
-    blob = blob[:m.start()] + new + blob[m.end():]
-    diff = len(new) - len(old)
-    print(f'{name}: {diff:+d} bytes')
-    return blob, diff
-
-
 total_diff = 0
 
-legacy_pat_j = (
-    rb'EH=zK\(FH,KH\)\?\?null,wH=EH\?EH\.model:FH,LH=yB\(FH\)\.modelProvider,'
-    rb'vH,(' + V + rb')=EH\?(' + V + rb')\(EH\.model\):FH;'
-    rb'if\(\1\)try\{vH=kz\(\{modelId:\1\}\)\}catch\{\}'
-    rb'return\{model:wH,provider:LH,apiModelProvider:vH\?\.apiModelProvider,config:vH,customModel:EH,isSpecMode:NH,reasoningEffort:_H\}'
+# ============================================================
+# Phase 1: 从稳定结构发现辅助函数
+# ============================================================
+
+# fast variant: function XXX(H){let T=YYY(H);return T?ZZZ.get(T):void 0}
+fast_fn_pat = (
+    rb'function (' + V + rb')\(H\)\{let T=(' + V + rb')\(H\);'
+    rb'return T\?(' + V + rb')\.get\(T\):void 0\}'
 )
+fast_fn_matches = list(re.finditer(fast_fn_pat, data))
+assert len(fast_fn_matches) == 1, f'fast variant: 预期 1 个匹配，找到 {len(fast_fn_matches)}'
+fast_fn = fast_fn_matches[0].group(1)
+zi_fn = fast_fn_matches[0].group(2)
 
+# base variant: function XXX(H){let T=zi(H);return T?YYY[T]?.baseVariant:void 0}
+base_fn_pat = (
+    rb'function (' + V + rb')\(H\)\{let T=' + re.escape(zi_fn) +
+    rb'\(H\);return T\?(' + V + rb')\[T\]\?\.baseVariant:void 0\}'
+)
+base_fn_m = re.search(base_fn_pat, data)
+assert base_fn_m, 'base variant function 未找到'
+base_fn = base_fn_m.group(1)
 
-def repl_legacy_j(m):
-    resolved_var = m.group(1)
-    base_helper = m.group(2)
-    return (
-        b'EH=zK(FH,KH)??null,QH=iT().sessionSettings.fast===FH,wH=EH?EH.model:FH,LH=yB(FH).modelProvider,'
-        b'vH,' + resolved_var + b'=EH?(QH?bI9(EH.model)??' + base_helper + b'(EH.model):' + base_helper + b'(EH.model)):FH;'
-        b'if(' + resolved_var + b')try{vH=kz({modelId:' + resolved_var + b'})}catch{}'
-        b'return{model:wH,provider:LH,apiModelProvider:vH?.apiModelProvider,config:vH,customModel:EH,isSpecMode:NH,reasoningEffort:_H}'
-    )
+print(f'发现: fast={fast_fn.decode()}, base={base_fn.decode()}, resolver={zi_fn.decode()}')
 
+# ============================================================
+# Phase 2: 匹配 /fast 命令，提取 notify/state/info
+# ============================================================
 
-legacy_pat_fast = (
+fast_cmd_pat = (
     rb'execute:\(H,T\)=>\{let\{addMessage:R\}=T,A=H\[0\]\?\.toLowerCase\(\);'
-    rb'if\(A&&A!=="on"&&A!=="off"\)return (' + V + rb')\(R,`Invalid argument "\$\{H\[0\]\}"\. Usage: /fast, /fast on, or /fast off`\),\{handled:!0\};'
-    rb'let L=iT\(\),D=L.getModel\(\),C=!A\|\|A==="on",h=!!(' + V + rb')\(D\);'
-    rb'if\(C&&h\)\{let Q=yB\(D\);return \1\(R,`Already in fast mode \(\$\{Q\.shortDisplayName\|\|D\}\)`\),\{handled:!0\}\}'
-    rb'if\(!C&&!h\)\{let Q=yB\(D\);return \1\(R,`Already using base model \(\$\{Q\.shortDisplayName\|\|D\}\)`\),\{handled:!0\}\}'
-    rb'let \$=C\?bI9\(D\):\2\(D\);'
-    rb'if\(!\$\)\{let E=`No fast mode available for \$\{yB\(D\)\.shortDisplayName\|\|D\}`;return \1\(R,E\),\{handled:!0\}\}'
-    rb'try\{L\.setModel\(\$\)\}catch\(Q\)\{let E=Q instanceof Error\?Q\.message:"Failed to switch model";return \1\(R,E\),\{handled:!0\}\}'
-    rb'let W=yB\(\$\);return \1\(R,`Switched to \$\{W\.shortDisplayName\|\|\$\}`\),\{handled:!0\}\}'
+    rb'if\(A&&A!=="on"&&A!=="off"\)return '
+    rb'(?P<notify>' + V + rb')\(R,`Invalid argument "\$\{H\[0\]\}"\.'
+    rb' Usage: /fast, /fast on, or /fast off`\),\{handled:!0\};'
+    rb'let L=(?P<state>' + V + rb')\(\),D=L\.getModel\(\),'
+    rb'C=!A\|\|A==="on",h=!!' + re.escape(base_fn) + rb'\(D\);'
+    rb'if\(C&&h\)\{let Q=(?P<info>' + V + rb')\(D\);return '
+    rb'(?P=notify)\(R,`Already in fast mode '
+    rb'\(\$\{Q\.shortDisplayName\|\|D\}\)`\),\{handled:!0\}\}'
+    rb'if\(!C&&!h\)\{let Q=(?P=info)\(D\);return (?P=notify)\(R,'
+    rb'`Already using base model '
+    rb'\(\$\{Q\.shortDisplayName\|\|D\}\)`\),\{handled:!0\}\}'
+    rb'let \$=C\?' + re.escape(fast_fn) + rb'\(D\):'
+    + re.escape(base_fn) + rb'\(D\);'
+    rb'if\(!\$\)\{let E=`No fast mode available for '
+    rb'\$\{(?P=info)\(D\)\.shortDisplayName\|\|D\}`;'
+    rb'return (?P=notify)\(R,E\),\{handled:!0\}\}'
+    rb'try\{L\.setModel\(\$\)\}catch\(Q\)\{let E=Q instanceof Error\?'
+    rb'Q\.message:"Failed to switch model";'
+    rb'return (?P=notify)\(R,E\),\{handled:!0\}\}'
+    rb'let W=(?P=info)\(\$\);return (?P=notify)\(R,'
+    rb'`Switched to \$\{W\.shortDisplayName\|\|\$\}`\),\{handled:!0\}\}'
 )
 
+fast_cmd_m = re.search(fast_cmd_pat, data)
+assert fast_cmd_m, '/fast 命令未匹配'
+notify_fn = fast_cmd_m.group('notify')
+state_fn = fast_cmd_m.group('state')
+info_fn = fast_cmd_m.group('info')
 
-def repl_legacy_fast(m):
-    notify = m.group(1)
-    base_helper = m.group(2)
-    return (
-        b'execute:(H,T)=>{let{addMessage:R}=T,A=H[0]?.toLowerCase();if(A&&A!=="on"&&A!=="off")return ' + notify + b'(R,`Bad arg "${H[0]}". Use /fast [on|off]`),{handled:!0};'
-        b'let L=iT(),D=L.getModel(),C=!A||A==="on",B=D[6]===":",Q=yB(D),h=B?L.sessionSettings.fast===D:!!' + base_helper + b'(D),$=B?D:C?bI9(D):' + base_helper + b'(D);'
-        b'if(C&&h)return ' + notify + b'(R,`Already fast (${Q.shortDisplayName||D})`),{handled:!0};'
-        b'if(!C&&!h)return ' + notify + b'(R,`Already base (${Q.shortDisplayName||D})`),{handled:!0};'
-        b'if(B){if(C&&!bI9(Q.id))$=void 0;else L.sessionSettings.fast=C?D:"",L.currentSessionId&&L.saveSessionSettings({async:!0,shouldSyncToCloud:!0})}'
-        b'if(!$)return ' + notify + b'(R,`No fast for ${Q.shortDisplayName||D}`),{handled:!0};'
-        b'try{B||L.setModel($)}catch(h){return ' + notify + b'(R,h instanceof Error?h.message:"Switch failed"),{handled:!0}}'
-        b'return ' + notify + b'(R,B?`Fast ${C?"on":"off"} (${Q.shortDisplayName||D})`:`Switched to ${yB($).shortDisplayName||$}`),{handled:!0}}'
-    )
+print(f'发现: notify={notify_fn.decode()}, state={state_fn.decode()}, info={info_fn.decode()}')
 
+# ============================================================
+# Phase 3: 匹配并修补 j() 函数
+# ============================================================
 
-def apply_replacements(items):
-    global data, total_diff
-    for old, new, name in items:
-        data, diff = replace_exact(data, old, new, name)
-        total_diff += diff
+j_pat = (
+    rb'(?P<arg>' + V + rb')\)=>\{let (?P<isSpec>' + V + rb')=(?P=arg)\?\.isSpecMode\?\?H\.isSpecMode\(\),'
+    rb'(?P<model>' + V + rb')=(?P=arg)\?\.modelId\?\?'
+    rb'\((?P=isSpec)\?H\.getSpecModeModel\(\):H\.getModel\(\)\),'
+    rb'(?P<effort>' + V + rb')=(?P=arg)\?\.reasoningEffort\?\?'
+    rb'\((?P=isSpec)\?H\.getSpecModeReasoningEffort\(\):H\.getReasoningEffort\(\)\),'
+    rb'(?P<customs>' + V + rb')=(?P<customsFn>' + V + rb')\(\)\.getCustomModels\(\),'
+    rb'(?P<cm>' + V + rb')=(?P<lookupFn>' + V + rb')\((?P=model),(?P=customs)\)\?\?null,'
+    rb'(?P<modelOut>' + V + rb')=(?P=cm)\?(?P=cm)\.model:(?P=model),'
+    rb'(?P<prov>' + V + rb')=(?P<infoFn>' + V + rb')\((?P=model)\)\.modelProvider,'
+    rb'(?P<config>' + V + rb'),'
+    rb'(?P<resolved>' + V + rb')=(?P=cm)\?'
+    rb'(?P<helperFn>' + V + rb')\((?P=cm)\.model\):(?P=model);'
+    rb'if\((?P=resolved)\)try\{(?P=config)='
+    rb'(?P<resolverFn>' + V + rb')\(\{modelId:(?P=resolved)\}\)\}catch\{\}'
+    rb'return\{model:(?P=modelOut),provider:(?P=prov),'
+    rb'apiModelProvider:(?P=config)\?\.apiModelProvider,'
+    rb'config:(?P=config),customModel:(?P=cm),'
+    rb'isSpecMode:(?P=isSpec),reasoningEffort:(?P=effort)\}'
+)
 
+j_m = re.search(j_pat, data)
+assert j_m, 'j() 函数未匹配'
+d = j_m.groupdict()
 
-if has_regex(data, legacy_pat_j) and has_regex(data, legacy_pat_fast):
-    pat_bi9 = rb'function bI9\(H\)\{let T=zi\(H\);return T\?(' + V + rb')\.get\(T\):void 0\}'
-    pat_base = rb'function (' + V + rb')\(H\)\{let T=zi\(H\);return T\?aG\[T\]\?\.baseVariant:void 0\}'
+if d['infoFn'] != info_fn:
+    print(f'注意: j() infoFn={d["infoFn"].decode()} != /fast info={info_fn.decode()}')
 
-    def repl_bi9(m):
-        mapping = m.group(1)
-        return b'function bI9(H){return ' + mapping + b'.get(zi(H))}'
+j_new = (
+    d['arg'] + b')=>{let ' + d['isSpec'] + b'=' + d['arg'] + b'?.isSpecMode??H.isSpecMode(),'
+    + d['model'] + b'=' + d['arg'] + b'?.modelId??('
+    + d['isSpec'] + b'?H.getSpecModeModel():H.getModel()),'
+    + d['effort'] + b'=' + d['arg'] + b'?.reasoningEffort??('
+    + d['isSpec'] + b'?H.getSpecModeReasoningEffort():H.getReasoningEffort()),'
+    + d['customs'] + b'=' + d['customsFn'] + b'().getCustomModels(),'
+    + b'W0=' + state_fn + b'().sessionSettings.fast===' + d['model'] + b','
+    + d['cm'] + b'=' + d['lookupFn'] + b'('
+    + d['model'] + b',' + d['customs'] + b')??null,'
+    + d['modelOut'] + b'=' + d['cm'] + b'?' + d['cm'] + b'.model:'
+    + d['model'] + b','
+    + d['prov'] + b'=' + d['infoFn'] + b'(' + d['model'] + b').modelProvider,'
+    + d['config'] + b','
+    + d['resolved'] + b'=' + d['cm'] + b'?(W0?'
+    + fast_fn + b'(' + d['cm'] + b'.model)??'
+    + d['helperFn'] + b'(' + d['cm'] + b'.model):'
+    + d['helperFn'] + b'(' + d['cm'] + b'.model)):'
+    + d['model'] + b';'
+    + b'if(' + d['resolved'] + b')try{' + d['config'] + b'='
+    + d['resolverFn'] + b'({modelId:' + d['resolved'] + b'})}catch{}'
+    + b'return{model:' + d['modelOut'] + b',provider:' + d['prov'] + b','
+    + b'apiModelProvider:' + d['config'] + b'?.apiModelProvider,'
+    + b'config:' + d['config'] + b',customModel:' + d['cm'] + b','
+    + b'isSpecMode:' + d['isSpec'] + b',reasoningEffort:' + d['effort'] + b'}'
+)
 
-    def repl_base(m):
-        fn = m.group(1)
-        return b'function ' + fn + b'(H){return aG[zi(H)]?.baseVariant}'
+j_diff = len(j_new) - len(j_m.group(0))
+data = data[:j_m.start()] + j_new + data[j_m.end():]
+total_diff += j_diff
+print(f'j() 注入: {j_diff:+d} bytes')
 
-    data, diff = replace_regex(data, pat_bi9, repl_bi9, 'bI9 等价缩写')
-    total_diff += diff
-    data, diff = replace_regex(data, pat_base, repl_base, 'baseVariant helper 等价缩写')
-    total_diff += diff
-    data, diff = replace_regex(data, legacy_pat_j, repl_legacy_j, 'j() custom fast 请求注入')
-    total_diff += diff
-    data, diff = replace_regex(data, legacy_pat_fast, repl_legacy_fast, '/fast 命令改为支持 custom model')
-    total_diff += diff
-else:
-    current_j_old = (
-        b'let ZH=XH?.isSpecMode??H.isSpecMode(),_H=XH?.modelId??(ZH?H.getSpecModeModel():H.getModel()),'
-        b'KH=XH?.reasoningEffort??(ZH?H.getSpecModeReasoningEffort():H.getReasoningEffort()),QH=lR().getCustomModels(),'
-        b'wH=vK(_H,QH)??null,LH=wH?wH.model:_H,jH=VB(_H).modelProvider,VH,MH=wH?OJH(wH.model):_H;'
-        b'if(MH)try{VH=XY({modelId:MH})}catch{}return{model:LH,provider:jH,apiModelProvider:VH?.apiModelProvider,config:VH,customModel:wH,isSpecMode:ZH,reasoningEffort:KH}'
-    )
-    current_j_new = (
-        b'let _H=XH?.isSpecMode??H.isSpecMode(),ZH=XH?.modelId??(_H?H.getSpecModeModel():H.getModel()),'
-        b'KH=XH?.reasoningEffort??(_H?H.getSpecModeReasoningEffort():H.getReasoningEffort()),QH=lR().getCustomModels(),'
-        b'W0=bT().sessionSettings.fast===ZH,wH=vK(ZH,QH)??null,LH=wH?wH.model:ZH,jH=VB(ZH).modelProvider,VH,'
-        b'MH=wH?(W0?g79(wH.model)??OJH(wH.model):OJH(wH.model)):ZH;if(MH)try{VH=XY({modelId:MH})}catch{}'
-        b'return{model:LH,provider:jH,apiModelProvider:VH?.apiModelProvider,config:VH,customModel:wH,isSpecMode:_H,reasoningEffort:KH}'
-    )
-    current_fast_old = (
-        b'execute:(H,T)=>{let{addMessage:R}=T,A=H[0]?.toLowerCase();if(A&&A!=="on"&&A!=="off")return '
-        b'PgH(R,`Invalid argument "${H[0]}". Usage: /fast, /fast on, or /fast off`),{handled:!0};'
-        b'let L=bT(),D=L.getModel(),C=!A||A==="on",h=!!aQR(D);if(C&&h){let Q=VB(D);return '
-        b'PgH(R,`Already in fast mode (${Q.shortDisplayName||D})`),{handled:!0}}'
-        b'if(!C&&!h){let Q=VB(D);return PgH(R,`Already using base model (${Q.shortDisplayName||D})`),{handled:!0}}'
-        b'let $=C?g79(D):aQR(D);if(!$){let E=`No fast mode available for ${VB(D).shortDisplayName||D}`;'
-        b'return PgH(R,E),{handled:!0}}try{L.setModel($)}catch(Q){let E=Q instanceof Error?Q.message:"Failed to switch model";'
-        b'return PgH(R,E),{handled:!0}}let W=VB($);return PgH(R,`Switched to ${W.shortDisplayName||$}`),{handled:!0}}'
-    )
-    current_fast_new = (
-        b'execute:(H,T)=>{let{addMessage:R}=T,A=H[0]?.toLowerCase();if(A&&A!=="on"&&A!=="off")return '
-        b'PgH(R,`Bad arg "${H[0]}". Use /fast [on|off]`),{handled:!0};'
-        b'let L=bT(),D=L.getModel(),C=!A||A==="on",B=D[6]===":",Q=VB(D),h=B?L.sessionSettings.fast===D:!!aQR(D),'
-        b'$=B?D:C?g79(D):aQR(D);if(C&&h)return PgH(R,`Already fast (${Q.shortDisplayName||D})`),{handled:!0};'
-        b'if(!C&&!h)return PgH(R,`Already base (${Q.shortDisplayName||D})`),{handled:!0};'
-        b'if(B){if(C&&!g79(Q.id))$=void 0;else L.sessionSettings.fast=C?D:"",'
-        b'L.currentSessionId&&L.saveSessionSettings({async:!0,shouldSyncToCloud:!0})}'
-        b'if(!$)return PgH(R,`No fast for ${Q.shortDisplayName||D}`),{handled:!0};'
-        b'try{B||L.setModel($)}catch(h){return PgH(R,h instanceof Error?h.message:"Switch failed"),{handled:!0}}'
-        b'return PgH(R,B?`Fast ${C?"on":"off"} (${Q.shortDisplayName||D})`:`Switched to ${VB($).shortDisplayName||$}`),{handled:!0}}'
-    )
+# ============================================================
+# Phase 4: 匹配并修补 /fast 命令
+# ============================================================
 
-    data, diff = replace_exact(data, current_j_old, current_j_new, 'j() custom fast 请求注入')
-    total_diff += diff
-    data, diff = replace_exact(data, current_fast_old, current_fast_new, '/fast 命令改为支持 custom model')
-    total_diff += diff
-    apply_replacements([
-        (b'Show settings configuration errors', b'Show config issue', 'status 描述补偿'),
-        (b'Manage plugins and marketplaces', b'Manage plugins', 'plugins 描述补偿'),
-    ])
+# j() 修改后偏移变化，重新搜索
+fast_cmd_m2 = re.search(fast_cmd_pat, data)
+assert fast_cmd_m2, '/fast 命令二次匹配失败'
 
+fast_new = (
+    b'execute:(H,T)=>{let{addMessage:R}=T,A=H[0]?.toLowerCase();'
+    b'if(A&&A!=="on"&&A!=="off")return '
+    + notify_fn + b'(R,`Bad arg "${H[0]}". Use /fast [on|off]`),{handled:!0};'
+    b'let L=' + state_fn + b'(),D=L.getModel(),C=!A||A==="on",'
+    b'B=D[6]===":",Q=' + info_fn + b'(D),'
+    b'h=B?L.sessionSettings.fast===D:!!' + base_fn + b'(D),'
+    b'$=B?D:C?' + fast_fn + b'(D):' + base_fn + b'(D);'
+    b'if(C&&h)return ' + notify_fn
+    + b'(R,`Already fast (${Q.shortDisplayName||D})`),{handled:!0};'
+    b'if(!C&&!h)return ' + notify_fn
+    + b'(R,`Already base (${Q.shortDisplayName||D})`),{handled:!0};'
+    b'if(B){if(C&&!' + fast_fn + b'(Q.id))$=void 0;'
+    b'else L.sessionSettings.fast=C?D:"",'
+    b'L.currentSessionId&&L.saveSessionSettings('
+    b'{async:!0,shouldSyncToCloud:!0})}'
+    b'if(!$)return ' + notify_fn
+    + b'(R,`No fast for ${Q.shortDisplayName||D}`),{handled:!0};'
+    b'try{B||L.setModel($)}catch(h){return ' + notify_fn
+    + b'(R,h instanceof Error?h.message:"Switch failed"),{handled:!0}}'
+    b'return ' + notify_fn + b'(R,B?`Fast ${C?"on":"off"} '
+    b'(${Q.shortDisplayName||D})`:`Switched to ${'
+    + info_fn + b'($).shortDisplayName||$}`),{handled:!0}}'
+)
 
-apply_replacements([
-    (
-        b'Enable fast mode for the current model (/fast off to disable)',
-        b'Toggle fast mode now',
-        'fast 描述补偿',
-    ),
-    (
-        b'Favorite the current session for quick access',
-        b'Favorite session',
-        'favorite 描述补偿',
-    ),
-    (
-        b'Fork the current session',
-        b'Fork session',
-        'fork 描述补偿',
-    ),
-    (
-        b'Generate a blog post style semantic diff for changes',
-        b'Generate semantic diff',
-        'generate_blog 描述补偿',
-    ),
-    (
-        b'Install and set up Git AI for tracking AI-generated code attribution',
-        b'Install and set up Git AI',
-        'git-ai 描述补偿',
-    ),
-])
+fast_diff = len(fast_new) - len(fast_cmd_m2.group(0))
+data = data[:fast_cmd_m2.start()] + fast_new + data[fast_cmd_m2.end():]
+total_diff += fast_diff
+print(f'/fast 命令: {fast_diff:+d} bytes')
 
-assert total_diff == 0, f'mod10 总字节变化异常: {total_diff:+d}'
-assert len(data) == original_size, f'mod10 大小变化 {len(data) - original_size:+d} bytes'
+# ============================================================
+# Phase 5: 动态字节补偿
+# ============================================================
+
+# 可用补偿池：稳定字符串常量 (按节省量降序)
+COMP_POOL = [
+    (b'Install and set up Git AI for tracking AI-generated code attribution',
+     b'Install and set up Git AI'),
+    (b'Enable fast mode for the current model (/fast off to disable)',
+     b'Toggle fast mode now'),
+    (b'Generate a blog post style semantic diff for changes',
+     b'Generate semantic diff'),
+    (b'Favorite the current session for quick access',
+     b'Favorite session'),
+    (b'Show settings configuration errors',
+     b'Show config issue'),
+    (b'Manage plugins and marketplaces',
+     b'Manage plugins'),
+    (b'Fork the current session',
+     b'Fork session'),
+]
+
+if total_diff > 0:
+    remaining = total_diff
+    for old, new in COMP_POOL:
+        if remaining <= 0:
+            break
+        if old not in data:
+            continue
+        savings = len(old) - len(new)
+        if savings <= remaining:
+            data = data.replace(old, new, 1)
+            remaining -= savings
+            print(f'  补偿 -{savings}B: {new.decode()}')
+        else:
+            padded = new + b' ' * (savings - remaining)
+            data = data.replace(old, padded, 1)
+            print(f'  补偿 -{remaining}B (partial): {new.decode()}')
+            remaining = 0
+
+    if remaining > 0:
+        print(f'ERROR: 补偿不足 {remaining}B，补偿池已耗尽')
+        save_droid(data)
+        sys.exit(1)
+
+    max_pool = sum(len(o) - len(n) for o, n in COMP_POOL)
+    print(f'  补偿池余量: {max_pool - total_diff}B / {max_pool}B')
+
+elif total_diff < 0:
+    print(f'WARNING: 负字节差异 {total_diff}，可能需要填充')
+
+final_diff = len(data) - original_size
+assert final_diff == 0, f'最终大小不匹配: {final_diff:+d}B'
 
 save_droid(data)
-print('mod10 完成 (net 0 bytes)')
+print(f'mod10 完成 (net 0 bytes)')
