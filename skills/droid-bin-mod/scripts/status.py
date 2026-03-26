@@ -103,8 +103,8 @@ else:
     results['mod9'] = 'unknown'
 
 # mod10: custom model /fast 支持
-mod10_has_session_fast = b'sessionSettings.fast===FH' in data
-mod10_has_command = b'L.sessionSettings.fast=C?D:""' in data
+mod10_has_session_fast = b'sessionSettings.fast===' in data and b'.sessionSettings.fast=C?D:""' in data
+mod10_has_command = b'.sessionSettings.fast=C?D:""' in data
 mod10_old_command = b'Invalid argument "${H[0]}". Usage: /fast, /fast on, or /fast off' in data
 
 if mod10_has_session_fast and mod10_has_command:

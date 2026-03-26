@@ -1,0 +1,808 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -z "${TMUX:-}" ]]; then
+  echo "/vim requires tmux." >&2
+  exit 1
+fi
+
+editor_bin="${DROID_VIM_EDITOR:-vim}"
+if ! command -v "$editor_bin" >/dev/null 2>&1; then
+  echo "editor not found: $editor_bin" >&2
+  exit 1
+fi
+
+seed_mode="${DROID_VIM_SEED_MODE:-blank}"
+reply_pane="${TMUX_PANE:-}"
+if [[ -n "$reply_pane" ]] && ! tmux display-message -p -t "$reply_pane" '#{pane_id}' >/dev/null 2>&1; then
+  reply_pane=""
+fi
+src_pane="$(tmux display-message -p '#{pane_id}' 2>/dev/null || true)"
+if [[ -z "$src_pane" ]]; then
+  src_pane="$reply_pane"
+fi
+if [[ -z "$src_pane" ]]; then
+  echo "/vim could not resolve current tmux pane." >&2
+  exit 1
+fi
+if [[ -z "$reply_pane" ]]; then
+  reply_pane="$src_pane"
+fi
+src_cwd="$(tmux display-message -p -t "$src_pane" '#{pane_current_path}')"
+src_session="$(tmux display-message -p -t "$src_pane" '#{session_id}')"
+src_window="$(tmux display-message -p -t "$src_pane" '#{window_id}')"
+src_client_tty="$(tmux display-message -p -t "$src_pane" '#{client_tty}')"
+src_client_pid="$(tmux display-message -p -t "$src_pane" '#{client_pid}')"
+tmpdir="$(mktemp -d "${TMPDIR:-/tmp}/droid-vim.XXXXXX")"
+msg_file="$tmpdir/message.md"
+orig_file="$tmpdir/original.md"
+helper_file="$tmpdir/run.sh"
+iterm2_api_dir="${DROID_VIM_ITERM2_API_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/droid-vim/iterm2py}"
+ghostty_app="${DROID_VIM_GHOSTTY_APP:-/Applications/Ghostty.app}"
+iterm2_window_x="${DROID_VIM_ITERM2_WINDOW_X:-}"
+iterm2_window_y="${DROID_VIM_ITERM2_WINDOW_Y:-}"
+iterm2_window_width="${DROID_VIM_ITERM2_WINDOW_WIDTH:-1180}"
+iterm2_window_height="${DROID_VIM_ITERM2_WINDOW_HEIGHT:-820}"
+transport="${DROID_VIM_TRANSPORT:-auto}"
+popup_width="${DROID_VIM_POPUP_WIDTH:-90%}"
+popup_height="${DROID_VIM_POPUP_HEIGHT:-90%}"
+popup_mode="${DROID_VIM_POPUP_MODE:-smart}"
+split_direction="${DROID_VIM_SPLIT_DIRECTION:-right}"
+session_map_file="${DROID_VIM_SESSION_MAP_FILE:-${XDG_CACHE_HOME:-$HOME/.cache}/droid-vim/session-map.json}"
+output_mode="${DROID_VIM_OUTPUT_MODE:-text}"
+cursor_mode="${DROID_VIM_CURSOR_MODE:-start}"
+paste_delay_default="${DROID_VIM_PASTE_DELAY:-0.20}"
+interrupt_before_paste_default="${DROID_VIM_INTERRUPT_BEFORE_PASTE:-0}"
+interrupt_after_paste_default="${DROID_VIM_INTERRUPT_AFTER_PASTE:-1}"
+interrupt_settle_delay_default="${DROID_VIM_INTERRUPT_SETTLE_DELAY:-0.08}"
+submit_delay_default="${DROID_VIM_SUBMIT_DELAY:-0.03}"
+
+case "$cursor_mode" in
+  start|top|auto)
+    cursor_mode="start"
+    ;;
+  end)
+    ;;
+  *)
+    cursor_mode="start"
+    ;;
+esac
+
+case "$output_mode" in
+  text|diff)
+    ;;
+  auto)
+    if [[ "$seed_mode" == "session" ]]; then
+      output_mode="diff"
+    else
+      output_mode="text"
+    fi
+    ;;
+  *)
+    output_mode="text"
+    ;;
+esac
+
+capture_session_seed_to_file() {
+  local cwd="$1"
+  local dst="$2"
+  local transcript_path="${3:-}"
+  python3 - "$cwd" "$dst" "$transcript_path" <<'PY'
+from pathlib import Path
+import json
+import os
+import sys
+
+cwd = sys.argv[1]
+dst = Path(sys.argv[2])
+preferred = Path(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else None
+sessions_root = Path.home() / ".factory" / "sessions"
+
+def session_dir_name(path: str) -> str:
+    return path.replace("/", "-") or "-"
+
+def iter_candidate_files(path: str):
+    seen = set()
+    for candidate in [path, os.path.realpath(path)]:
+        if not candidate or candidate in seen:
+            continue
+        seen.add(candidate)
+        session_dir = sessions_root / session_dir_name(candidate)
+        if session_dir.is_dir():
+            yield from sorted(session_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime_ns, reverse=True)
+    if sessions_root.is_dir():
+        yield from sorted(sessions_root.glob("*.jsonl"), key=lambda p: p.stat().st_mtime_ns, reverse=True)
+
+def extract_last_assistant_text(file_path: Path) -> str:
+    try:
+        lines = file_path.read_text(errors="ignore").splitlines()
+    except OSError:
+        return ""
+    for line in reversed(lines):
+        try:
+            obj = json.loads(line)
+        except Exception:
+            continue
+        if obj.get("type") != "message":
+            continue
+        message = obj.get("message") or {}
+        if message.get("role") != "assistant":
+            continue
+        parts = []
+        fallback_plan = ""
+        for item in message.get("content") or []:
+            if item.get("type") == "text":
+                text = item.get("text") or ""
+                if text.strip():
+                    parts.append(text.rstrip("\n"))
+            elif item.get("type") == "tool_use" and item.get("name") == "ExitSpecMode":
+                tool_input = item.get("input") or {}
+                plan = tool_input.get("plan") if isinstance(tool_input, dict) else ""
+                if isinstance(plan, str) and plan.strip():
+                    fallback_plan = plan.strip()
+        if parts:
+            return "\n\n".join(parts).strip()
+        if fallback_plan:
+            return fallback_plan
+    return ""
+
+if preferred:
+    text = extract_last_assistant_text(preferred)
+    if text:
+        dst.write_text(text + "\n")
+    else:
+        dst.write_text("")
+    raise SystemExit(0)
+
+for index, file_path in enumerate(iter_candidate_files(cwd)):
+    if index >= 10:
+        break
+    text = extract_last_assistant_text(file_path)
+    if text:
+        dst.write_text(text + "\n")
+        break
+else:
+    dst.write_text("")
+PY
+}
+
+resolve_current_droid_process_info() {
+  local pane_pid pane_tty
+  pane_pid="$(tmux display-message -p -t "$src_pane" '#{pane_pid}')"
+  pane_tty="$(tmux display-message -p -t "$src_pane" '#{pane_tty}')"
+  python3 - "$pane_pid" "$pane_tty" <<'PY'
+import subprocess
+import sys
+
+root = int(sys.argv[1])
+pane_tty = sys.argv[2]
+out = subprocess.check_output(['ps', '-axo', 'pid=,ppid=,tty=,comm=,args='], text=True)
+rows = []
+for line in out.splitlines():
+    parts = line.strip().split(None, 4)
+    if len(parts) < 5:
+        continue
+    pid, ppid, tty, comm, args = int(parts[0]), int(parts[1]), parts[2], parts[3], parts[4]
+    rows.append((pid, ppid, tty, comm, args))
+
+by_ppid = {}
+for row in rows:
+    by_ppid.setdefault(row[1], []).append(row)
+
+best = None
+stack = [root]
+seen = set()
+while stack:
+    pid = stack.pop()
+    if pid in seen:
+        continue
+    seen.add(pid)
+    for child in by_ppid.get(pid, []):
+        child_pid, _, tty, comm, args = child
+        if comm == 'droid':
+            if best is None or tty == pane_tty:
+                best = child
+                if tty == pane_tty:
+                    print(f'{child_pid}\t{tty}\t{args}')
+                    raise SystemExit(0)
+        stack.append(child_pid)
+
+if best is not None:
+    print(f'{best[0]}\t{best[2]}\t{best[4]}')
+PY
+}
+
+resolve_current_droid_transcript_path() {
+  local info droid_pid droid_tty droid_args
+  local transcript_path=""
+
+  if info="$(resolve_current_droid_process_info 2>/dev/null)" && [[ -n "$info" ]]; then
+    IFS=$'\t' read -r droid_pid droid_tty droid_args <<<"$info"
+    transcript_path="$(python3 - "$session_map_file" "$droid_pid" "$droid_tty" <<'PY'
+from pathlib import Path
+import json
+import sys
+
+map_file = Path(sys.argv[1])
+pid = sys.argv[2]
+tty = sys.argv[3]
+
+try:
+    data = json.loads(map_file.read_text())
+except Exception:
+    raise SystemExit(0)
+
+record = (data.get('by_pid') or {}).get(pid)
+if record and record.get('transcript_path'):
+    print(record['transcript_path'])
+    raise SystemExit(0)
+
+record = (data.get('by_tty') or {}).get(tty)
+if record and record.get('transcript_path'):
+    print(record['transcript_path'])
+PY
+)"
+
+    if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
+      printf '%s\n' "$transcript_path"
+      return 0
+    fi
+
+    if [[ "$droid_args" =~ --resume[[:space:]]+([0-9a-fA-F-]{36}) ]]; then
+      transcript_path="$(python3 - "$src_cwd" "${BASH_REMATCH[1]}" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+cwd = sys.argv[1]
+session_id = sys.argv[2]
+sessions_root = Path.home() / '.factory' / 'sessions'
+
+def session_dir_name(path: str) -> str:
+    return path.replace('/', '-') or '-'
+
+seen = set()
+for candidate in [cwd, os.path.realpath(cwd)]:
+    if not candidate or candidate in seen:
+        continue
+    seen.add(candidate)
+    file_path = sessions_root / session_dir_name(candidate) / f'{session_id}.jsonl'
+    if file_path.is_file():
+        print(file_path)
+        raise SystemExit(0)
+
+for file_path in sessions_root.glob(f'**/{session_id}.jsonl'):
+    if file_path.is_file():
+        print(file_path)
+        raise SystemExit(0)
+PY
+)"
+      if [[ -n "$transcript_path" && -f "$transcript_path" ]]; then
+        printf '%s\n' "$transcript_path"
+        return 0
+      fi
+    fi
+  fi
+
+  return 1
+}
+
+ensure_iterm2_python_api() {
+  mkdir -p "$iterm2_api_dir"
+  if PYTHONPATH="$iterm2_api_dir" python3 - <<'PY' >/dev/null 2>&1
+import iterm2  # noqa: F401
+import google.protobuf  # noqa: F401
+PY
+  then
+    return 0
+  fi
+
+  python3 -m pip install --quiet --target "$iterm2_api_dir" iterm2==2.14 protobuf >/dev/null 2>&1
+}
+
+build_helper_cmd() {
+  printf '%q ' "$helper_file" "$reply_pane" "$editor_bin" "$msg_file" "$orig_file" "$tmpdir" "$output_mode" "$paste_delay_default" "$interrupt_before_paste_default" "$interrupt_after_paste_default" "$interrupt_settle_delay_default" "$submit_delay_default" "$cursor_mode"
+}
+
+tmux_supports_popup() {
+  local commands
+  commands="$(tmux list-commands 2>/dev/null || true)"
+  [[ "$commands" == *$'\ndisplay-popup '* || "$commands" == display-popup* ]]
+}
+
+resolve_tmux_target_client() {
+  local client_tty
+  if [[ -n "$src_client_tty" ]]; then
+    printf '%s\n' "$src_client_tty"
+    return 0
+  fi
+
+  client_tty="$(tmux list-clients -t "$src_session" -F '#{client_activity} #{client_tty}' 2>/dev/null | sort -rn | awk 'NF >= 2 { print $2; exit }')"
+  [[ -n "$client_tty" ]] || return 1
+  printf '%s\n' "$client_tty"
+}
+
+resolve_popup_dimension() {
+  local spec="$1"
+  local total="$2"
+  local value
+
+  if [[ "$spec" =~ ^([0-9]+)%$ ]]; then
+    value=$(( total * BASH_REMATCH[1] / 100 ))
+  elif [[ "$spec" =~ ^[0-9]+$ ]]; then
+    value="$spec"
+  else
+    value=$(( total * 9 / 10 ))
+  fi
+
+  if (( value < 1 )); then
+    value=1
+  elif (( value > total )); then
+    value="$total"
+  fi
+
+  printf '%s\n' "$value"
+}
+
+resolve_tmux_popup_geometry() {
+  local target_client="$1"
+  local pane_left pane_top pane_width pane_height
+  local client_width client_height
+  local pane_center_x pane_center_y
+  local left_space right_space top_space bottom_space
+  local popup_w popup_h popup_x popup_y
+  local preferred_horizontal preferred_vertical fallback_horizontal fallback_vertical
+  local side
+  local pane_id other_left other_top other_width other_height
+  local pane_count
+  local -a candidates=()
+
+  pane_left="$(tmux display-message -p -t "$src_pane" '#{pane_left}')"
+  pane_top="$(tmux display-message -p -t "$src_pane" '#{pane_top}')"
+  pane_width="$(tmux display-message -p -t "$src_pane" '#{pane_width}')"
+  pane_height="$(tmux display-message -p -t "$src_pane" '#{pane_height}')"
+  client_width="$(tmux display-message -p -c "$target_client" '#{client_width}')"
+  client_height="$(tmux display-message -p -c "$target_client" '#{client_height}')"
+
+  popup_w="$(resolve_popup_dimension "$popup_width" "$client_width")"
+  popup_h="$(resolve_popup_dimension "$popup_height" "$client_height")"
+
+  case "$popup_mode" in
+    center)
+      popup_x=$(( (client_width - popup_w) / 2 ))
+      popup_y=$(( (client_height - popup_h) / 2 ))
+      printf '%s %s %s %s\n' "$popup_x" "$popup_y" "$popup_w" "$popup_h"
+      return 0
+      ;;
+    other-pane-right)
+      pane_count="$(tmux list-panes -t "$src_window" 2>/dev/null | wc -l | tr -d ' ')"
+      if [[ "$pane_count" == "2" ]]; then
+        while read -r pane_id other_left other_top other_width other_height; do
+          [[ "$pane_id" == "$src_pane" ]] && continue
+          if [[ -n "$pane_id" ]]; then
+            printf '%s %s %s %s\n' "$other_left" "$other_top" "$other_width" "$other_height"
+            return 0
+          fi
+        done < <(tmux list-panes -t "$src_window" -F '#{pane_id} #{pane_left} #{pane_top} #{pane_width} #{pane_height}' 2>/dev/null)
+      fi
+
+      popup_x=$(( client_width - popup_w ))
+      popup_y=$(( (client_height - popup_h) / 2 ))
+      printf '%s %s %s %s\n' "$popup_x" "$popup_y" "$popup_w" "$popup_h"
+      return 0
+      ;;
+  esac
+
+  pane_center_x=$(( pane_left + pane_width / 2 ))
+  pane_center_y=$(( pane_top + pane_height / 2 ))
+  left_space="$pane_left"
+  right_space=$(( client_width - pane_left - pane_width ))
+  top_space="$pane_top"
+  bottom_space=$(( client_height - pane_top - pane_height ))
+
+  if (( pane_center_x <= client_width / 2 )); then
+    preferred_horizontal="right"
+    fallback_horizontal="left"
+  else
+    preferred_horizontal="left"
+    fallback_horizontal="right"
+  fi
+
+  if (( pane_center_y <= client_height / 2 )); then
+    preferred_vertical="bottom"
+    fallback_vertical="top"
+  else
+    preferred_vertical="top"
+    fallback_vertical="bottom"
+  fi
+
+  candidates=("$preferred_horizontal" "$preferred_vertical" "$fallback_horizontal" "$fallback_vertical")
+
+  for side in "${candidates[@]}"; do
+    case "$side" in
+      left)
+        if (( popup_w <= left_space )); then
+          popup_x=0
+          popup_y=$(( (client_height - popup_h) / 2 ))
+          printf '%s %s %s %s\n' "$popup_x" "$popup_y" "$popup_w" "$popup_h"
+          return 0
+        fi
+        ;;
+      right)
+        if (( popup_w <= right_space )); then
+          popup_x=$(( client_width - popup_w ))
+          popup_y=$(( (client_height - popup_h) / 2 ))
+          printf '%s %s %s %s\n' "$popup_x" "$popup_y" "$popup_w" "$popup_h"
+          return 0
+        fi
+        ;;
+      top)
+        if (( popup_h <= top_space )); then
+          popup_x=$(( (client_width - popup_w) / 2 ))
+          popup_y=0
+          printf '%s %s %s %s\n' "$popup_x" "$popup_y" "$popup_w" "$popup_h"
+          return 0
+        fi
+        ;;
+      bottom)
+        if (( popup_h <= bottom_space )); then
+          popup_x=$(( (client_width - popup_w) / 2 ))
+          popup_y=$(( client_height - popup_h ))
+          printf '%s %s %s %s\n' "$popup_x" "$popup_y" "$popup_w" "$popup_h"
+          return 0
+        fi
+        ;;
+    esac
+  done
+
+  popup_x=$(( client_width - popup_w ))
+  popup_y=$(( (client_height - popup_h) / 2 ))
+  printf '%s %s %s %s\n' "$popup_x" "$popup_y" "$popup_w" "$popup_h"
+}
+
+tmux_client_matches_process() {
+  local pattern="$1"
+  local pid="$src_client_pid"
+  local comm
+  local ppid
+
+  while [[ "$pid" =~ ^[0-9]+$ ]] && (( pid > 1 )); do
+    comm="$(ps -o comm= -p "$pid" 2>/dev/null | sed 's/^[[:space:]]*//')"
+    case "$comm" in
+      *"$pattern"* )
+        return 0
+        ;;
+    esac
+    ppid="$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d '[:space:]')"
+    [[ -n "$ppid" ]] || break
+    pid="$ppid"
+  done
+
+  return 1
+}
+
+tmux_client_is_iterm2() {
+  tmux_client_matches_process "iTerm"
+}
+
+tmux_client_is_ghostty() {
+  tmux_client_matches_process "Ghostty"
+}
+
+start_editor_session() {
+  local helper_cmd
+  local editor_session_name
+  helper_cmd="$(build_helper_cmd)"
+  editor_session_name="droid-vim-$(basename "$tmpdir" | tr -cd '[:alnum:]_-')"
+  tmux new-session -d -P -F '#{session_name}' -s "$editor_session_name" -c "$src_cwd" "$helper_cmd"
+}
+
+cat > "$helper_file" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+reply_pane="$1"
+editor_bin="$2"
+msg_file="$3"
+orig_file="$4"
+tmpdir="$5"
+send_mode="$6"
+paste_delay="$7"
+interrupt_before_paste="$8"
+interrupt_after_paste="$9"
+interrupt_settle_delay="${10}"
+submit_delay="${11}"
+cursor_mode="${12}"
+send_file="$tmpdir/send.txt"
+post_file="$tmpdir/post.sh"
+content_changed="0"
+
+cleanup() {
+  rm -rf "$tmpdir"
+}
+
+trap cleanup EXIT
+
+editor_name="$(basename -- "$editor_bin")"
+case "$editor_name" in
+  *vim*)
+    case "$cursor_mode" in
+      end)
+        "$editor_bin" +'normal! G$' "$msg_file"
+        ;;
+      *)
+        "$editor_bin" "$msg_file"
+        ;;
+    esac
+    ;;
+  *)
+    "$editor_bin" "$msg_file"
+    ;;
+esac
+
+if [[ -s "$msg_file" ]] && ! cmp -s "$msg_file" "$orig_file"; then
+  content_changed="1"
+  python3 - "$orig_file" "$msg_file" "$send_file" "$send_mode" <<'PY'
+from pathlib import Path
+import difflib
+import sys
+
+orig = Path(sys.argv[1]).read_text(errors="ignore")
+edited = Path(sys.argv[2]).read_text(errors="ignore")
+dst = Path(sys.argv[3])
+mode = sys.argv[4]
+
+if mode == "diff":
+    diff = "".join(
+        difflib.unified_diff(
+            orig.splitlines(True),
+            edited.splitlines(True),
+            fromfile="before",
+            tofile="after",
+        )
+    ).rstrip("\n")
+    payload = "<droid_edit mode=\"diff\">\n"
+    payload += "<edit_note>请把下面的 diff 视为用户基于上一版内容做的修改。新增、删除、替换以及 diff 里的行内注释都表达用户意图。</edit_note>\n"
+    payload += "<edit_diff>\n"
+    payload += diff
+    payload += "\n</edit_diff>\n</droid_edit>"
+else:
+    payload = "<droid_edit mode=\"text\">\n"
+    payload += "<edit_note>请把下面内容视为用户在外部编辑器里整理后的最新正文。</edit_note>\n"
+    payload += "<edited_text>\n"
+    payload += edited.rstrip("\n")
+    payload += "\n</edited_text>\n</droid_edit>"
+
+dst.write_text(payload[:-1] if payload.endswith("\n") else payload)
+PY
+fi
+
+cat > "$post_file" <<'POST'
+#!/usr/bin/env bash
+set -euo pipefail
+
+reply_pane="$1"
+send_file="$2"
+tmpdir="$3"
+paste_delay="$4"
+content_changed="$5"
+interrupt_before_paste="$6"
+interrupt_after_paste="$7"
+interrupt_settle_delay="$8"
+submit_delay="$9"
+
+sleep "$paste_delay"
+
+if [[ "$content_changed" == "1" && "$interrupt_before_paste" != "0" ]]; then
+  tmux send-keys -t "$reply_pane" Escape
+  sleep "$interrupt_settle_delay"
+fi
+
+if [[ "$content_changed" == "1" ]]; then
+  send_text="$(cat "$send_file")"
+  if [[ "$send_text" != *$'\n'* && "$send_text" == /* ]]; then
+    tmux send-keys -t "$reply_pane" -l "$send_text"
+  else
+    tmux load-buffer "$send_file"
+    tmux paste-buffer -p -t "$reply_pane"
+  fi
+fi
+
+if [[ "$interrupt_after_paste" != "0" ]]; then
+  if [[ "$content_changed" == "1" ]]; then
+    sleep "$interrupt_settle_delay"
+  fi
+  tmux send-keys -t "$reply_pane" Escape
+fi
+
+if [[ "$content_changed" == "1" ]]; then
+  sleep "$submit_delay"
+  tmux send-keys -t "$reply_pane" Enter
+fi
+rm -rf "$tmpdir"
+POST
+chmod +x "$post_file"
+trap - EXIT
+printf -v post_cmd '%q ' "$post_file" "$reply_pane" "$send_file" "$tmpdir" "$paste_delay" "$content_changed" "$interrupt_before_paste" "$interrupt_after_paste" "$interrupt_settle_delay" "$submit_delay"
+tmux run-shell -b "$post_cmd"
+EOF
+chmod +x "$helper_file"
+
+open_vim_iterm2_window() {
+  local editor_session
+  local shell_cmd
+  editor_session="$(start_editor_session)"
+
+  printf -v shell_cmd 'exec tmux attach-session -t %q' "$editor_session"
+  if ! ensure_iterm2_python_api; then
+    tmux kill-session -t "$editor_session" >/dev/null 2>&1 || true
+    return 1
+  fi
+
+  if PYTHONPATH="$iterm2_api_dir" python3 - "$shell_cmd" "$iterm2_window_x" "$iterm2_window_y" "$iterm2_window_width" "$iterm2_window_height" <<'PY' >/dev/null
+import sys
+import shlex
+import iterm2
+
+shell_command = sys.argv[1]
+origin_x_arg = sys.argv[2]
+origin_y_arg = sys.argv[3]
+width = int(sys.argv[4])
+height = int(sys.argv[5])
+
+async def main(connection):
+    app = await iterm2.async_get_app(connection)
+    window = app.current_terminal_window
+    if window is None:
+        raise RuntimeError("No current iTerm2 window")
+    source_frame = await window.async_get_frame()
+    origin_x = int(origin_x_arg) if origin_x_arg else round(source_frame.origin.x + (source_frame.size.width - width) / 2)
+    origin_y = int(origin_y_arg) if origin_y_arg else round(source_frame.origin.y + (source_frame.size.height - height) / 2)
+    command = f"/bin/zsh -lc {shlex.quote(shell_command)}"
+    profile = iterm2.profile.LocalWriteOnlyProfile()
+    profile.set_use_custom_command(iterm2.profile.Profile.USE_CUSTOM_COMMAND_ENABLED)
+    profile.set_command(command)
+    profile.set_send_session_ended_alert(False)
+    profile.set_close_sessions_on_end(True)
+    profile.set_prompt_before_closing(False)
+    moved_window = await iterm2.Window.async_create(connection, profile_customizations=profile)
+    if moved_window is None:
+        raise RuntimeError("Failed to create iTerm2 window")
+    frame = iterm2.util.Frame(
+        iterm2.util.Point(origin_x, origin_y),
+        iterm2.util.Size(width, height),
+    )
+    await moved_window.async_set_frame(frame)
+
+iterm2.run_until_complete(main, True)
+PY
+  then
+    return 0
+  fi
+
+  tmux kill-session -t "$editor_session" >/dev/null 2>&1 || true
+  return 1
+}
+
+open_vim_ghostty_window() {
+  local editor_session
+  local shell_cmd
+  [[ -d "$ghostty_app" ]] || return 1
+
+  editor_session="$(start_editor_session)"
+  printf -v shell_cmd 'exec tmux attach-session -t %q' "$editor_session"
+
+  if open -na "$ghostty_app" --args --quit-after-last-window-closed=true -e /bin/bash -lc "$shell_cmd"; then
+    return 0
+  fi
+
+  tmux kill-session -t "$editor_session" >/dev/null 2>&1 || true
+  return 1
+}
+
+open_vim_tmux_popup() {
+  local helper_cmd
+  local target_client
+  local popup_x popup_y popup_w popup_h
+  target_client="$(resolve_tmux_target_client)" || return 1
+  read -r popup_x popup_y popup_w popup_h < <(resolve_tmux_popup_geometry "$target_client")
+  helper_cmd="$(build_helper_cmd)"
+  if [[ "$popup_mode" == "center" ]]; then
+    tmux display-popup -c "$target_client" -d "$src_cwd" -x C -y C -w "$popup_w" -h "$popup_h" -T droid-vim -E "$helper_cmd"
+  else
+    tmux display-popup -c "$target_client" -t "$src_pane" -d "$src_cwd" -x "$popup_x" -y "$popup_y" -w "$popup_w" -h "$popup_h" -T droid-vim -E "$helper_cmd"
+  fi
+}
+
+open_vim_tmux_window() {
+  local helper_cmd
+  local window_id
+  helper_cmd="$(build_helper_cmd)"
+  window_id="$(tmux new-window -d -P -F '#{window_id}' -t "$src_session" -c "$src_cwd" -n droid-vim "$helper_cmd")"
+  tmux select-window -t "$window_id"
+}
+
+open_vim_tmux_split() {
+  local helper_cmd
+  local split_flag
+  local before_flag=""
+  local pane_id
+  helper_cmd="$(build_helper_cmd)"
+
+  case "$split_direction" in
+    right)
+      split_flag="-h"
+      ;;
+    left)
+      split_flag="-h"
+      before_flag="-b"
+      ;;
+    down)
+      split_flag="-v"
+      ;;
+    up)
+      split_flag="-v"
+      before_flag="-b"
+      ;;
+    *)
+      echo "unsupported DROID_VIM_SPLIT_DIRECTION: $split_direction" >&2
+      return 1
+      ;;
+  esac
+
+  if [[ -n "$before_flag" ]]; then
+    pane_id="$(tmux split-window "$split_flag" "$before_flag" -P -F '#{pane_id}' -t "$src_pane" -c "$src_cwd" "$helper_cmd")"
+  else
+    pane_id="$(tmux split-window "$split_flag" -P -F '#{pane_id}' -t "$src_pane" -c "$src_cwd" "$helper_cmd")"
+  fi
+  tmux select-pane -t "$pane_id"
+}
+
+open_vim_window() {
+  case "$transport" in
+    auto)
+      if tmux_client_is_iterm2; then
+        open_vim_iterm2_window && return 0
+      fi
+      if tmux_client_is_ghostty; then
+        open_vim_tmux_split && return 0
+      fi
+      open_vim_tmux_window
+      ;;
+    iterm2)
+      open_vim_iterm2_window && return 0
+      tmux_supports_popup && open_vim_tmux_popup && return 0
+      open_vim_tmux_window
+      ;;
+    ghostty)
+      open_vim_ghostty_window && return 0
+      open_vim_tmux_window
+      ;;
+    popup)
+      tmux_supports_popup && open_vim_tmux_popup && return 0
+      open_vim_tmux_window
+      ;;
+    split)
+      open_vim_tmux_split && return 0
+      open_vim_tmux_window
+      ;;
+    window)
+      open_vim_tmux_window
+      ;;
+    *)
+      echo "unsupported DROID_VIM_TRANSPORT: $transport" >&2
+      exit 1
+      ;;
+  esac
+}
+
+if [[ $# -gt 0 ]]; then
+  printf '%s\n' "$*" > "$msg_file"
+elif [[ "$seed_mode" == "session" ]]; then
+  capture_session_seed_to_file "$src_cwd" "$msg_file" "$(resolve_current_droid_transcript_path || true)"
+else
+  : > "$msg_file"
+fi
+
+cp "$msg_file" "$orig_file"
+open_vim_window
