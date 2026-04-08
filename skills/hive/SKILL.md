@@ -56,7 +56,7 @@ hive teams                            # 列出已知 team
 2. 再 `hive team`
 3. 其他 agent 发来的消息会直接以 `<HIVE from=... to=... [artifact=...]> ... </HIVE>` 形式出现在当前 pane
 4. 发消息用 `hive send <name> "<message>"`（positional，不要用 --to）
-5. 大内容写 artifact，再把路径通过 `hive send <name> "see artifact" --artifact <path>` 发出去
+5. 大内容或多行结构化内容先写 artifact，再把路径通过 `hive send <name> "see artifact" --artifact <path>` 发出去；不要把 `$(cat <<EOF ...)` 这类多行 command substitution 直接塞进 `hive send`
 6. 开始任务时主动 `hive status-set busy ...`
 7. 完成时 `hive status-set done ... --meta artifact=<path>`
 8. `hive notify` 只面向当前 pane 的用户，不用于 agent 之间互相通知
