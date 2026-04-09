@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-03-26T01:26:37.930Z",
+  "generatedAt": "2026-04-09T00:12:57.419Z",
   "sources": [
     {
       "name": "agent-browser",
@@ -8,7 +8,7 @@
       "ref": "main",
       "source": "skills/agent-browser",
       "target": "skills/agent-browser",
-      "commit": "63f03b8e0683118748253c55cc90bf79051193af"
+      "commit": "e4e2fe8633be35e2e4567a464604e6a314e74279"
     },
     {
       "name": "find-skills",
@@ -16,7 +16,7 @@
       "ref": "main",
       "source": "skills/find-skills",
       "target": "skills/find-skills",
-      "commit": "5c19f0f1965cafeeadd31528a0a579739bad5be2"
+      "commit": "df0579f85cb8a360473c921e1343359006100d3c"
     },
     {
       "name": "hive",
@@ -24,7 +24,7 @@
       "ref": "main",
       "source": "skills/hive",
       "target": "skills/hive",
-      "commit": "80b1b65863aae5e3c4ecc278dff12acc9fb7c313"
+      "commit": "ac781f54192f99176b4abed5433f089bd1f4ceb3"
     },
     {
       "name": "react-best-practices",
@@ -32,7 +32,7 @@
       "ref": "main",
       "source": "skills/react-best-practices",
       "target": "skills/react-best-practices",
-      "commit": "64484e9a6022c81e3af59f5dcee6fb6d631bf53e"
+      "commit": "73140fc5b3a214ad3222bcf557b397b3c02d11c1"
     },
     {
       "name": "react-doctor",
@@ -40,7 +40,7 @@
       "ref": "main",
       "source": "skills/react-doctor",
       "target": "skills/react-doctor",
-      "commit": "ec4a41fd827c29d79f9b27a588cde598e054d059"
+      "commit": "66e1318b0ef133d8b7c1139397c7808b40c6cb15"
     },
     {
       "name": "shadcn-ui",
@@ -48,7 +48,7 @@
       "ref": "main",
       "source": "skills/shadcn-ui",
       "target": "skills/shadcn-ui",
-      "commit": "ad0b5cc5d5c3569e12a3105b0dee7409c3227e1b"
+      "commit": "6c0cbdb909b7d256c8b9b3854c8c8f87aab2c140"
     },
     {
       "name": "frontend-design",
@@ -56,7 +56,7 @@
       "ref": "main",
       "source": "skills/frontend-design",
       "target": "skills/frontend-design",
-      "commit": "98669c11ca63e9c81c11501e1437e5c47b556621"
+      "commit": "ca1e7dc13c0ab5e2dfaa6de71991cd951b8f1cf2"
     }
   ]
 }
