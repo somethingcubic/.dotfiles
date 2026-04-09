@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-04-08T00:16:43.349Z",
+  "generatedAt": "2026-04-09T00:12:57.419Z",
   "sources": [
     {
       "name": "agent-browser",
@@ -24,7 +24,7 @@
       "ref": "main",
       "source": "skills/hive",
       "target": "skills/hive",
-      "commit": "531b71ac205b7e850037b3a4e34ed36a3f95c57f"
+      "commit": "ac781f54192f99176b4abed5433f089bd1f4ceb3"
     },
     {
       "name": "react-best-practices",
@@ -56,7 +56,7 @@
       "ref": "main",
       "source": "skills/frontend-design",
       "target": "skills/frontend-design",
-      "commit": "98669c11ca63e9c81c11501e1437e5c47b556621"
+      "commit": "ca1e7dc13c0ab5e2dfaa6de71991cd951b8f1cf2"
     }
   ]
 }
