@@ -11,7 +11,7 @@
 
 ## 协议边界
 
-- `hive send` 是发送消息的唯一入口,写入 workspace durable store(当前是 `hive.db`)
+- `hive send` 和 `hive reply` 都通过同一 sidecar 通道(`request_send_payload`)写入 workspace durable store(当前是 `hive.db`);区别是 reply 必带 `in_reply_to`,send 永远是新 thread root
 - `hive answer` 只在目标 `inputState=waiting_user` 时可用
 - Hive 不是严格可靠消息队列 —— 没有幂等性或 backpressure。收件箱一律是 pane 内联的 `<HIVE ...>` block;durable store 是写入层,不作轮询对象
 - GitHub PR comment / review 属于 workflow 层职责,直接用 `gh` / `gh api`;Hive kernel 命令保持单一职责
