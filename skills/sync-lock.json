@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-05-10T02:04:29.188Z",
+  "generatedAt": "2026-05-11T02:13:30.130Z",
   "sources": [
     {
       "name": "agent-browser",
@@ -40,7 +40,7 @@
       "ref": "main",
       "source": "skills/react-doctor",
       "target": "skills/react-doctor",
-      "commit": "787cdb560e0a59ca1c1270307e304c763aacb381"
+      "commit": "53fa4dffe837e0157fb850fef700fccaaec191ea"
     },
     {
       "name": "shadcn-ui",
