@@ -20,7 +20,7 @@
 
 ## 红线（最高优先级，违反零容忍）
 
-### A. 安全（细则见 `~/.claude/rules/safety.md`；git/生产操作已由 PreToolUse hooks 机械拦截）
+### A. 安全（细则见 `~/.claude/rules/safety.md`；git/生产操作在 Claude Code 侧由 PreToolUse hooks 机械拦截，Codex 侧暂靠本节 prose）
 
 - **[红线]** 生产/业务仓库所有变更走 PR：禁止直接 commit + push 到 main；**禁用 `git -C`**（hook 已无条件拦截）。~/.dotfiles 本地直推与 bot sync 属既定例外
 - **[红线]** 生产部署只允许 main 分支：prod (8.219.202.238) 和 refresh (8.222.139.116) 都属生产环境
@@ -28,7 +28,7 @@
 - **[红线]** 临时实验开关必须立即复原：实验完毕立刻恢复原值，不允许"先改了后面再说"
 - **[红线]** 配置不许猜：连接串/凭据/host/port 找不到就停下来问用户
 - **[红线]** SSH 并发 ≤ 3，且必带 `-o ConnectTimeout=10 -o ServerAliveInterval=5`（hook 强制校验）
-- **[红线]** 批量写操作前必须先 `SELECT COUNT(*)` 确认影响行数（生产 mysql DML 由 hook 强制人工确认）
+- **[红线]** 批量写操作前必须先 `SELECT COUNT(*)` 确认影响行数（SSH 直连生产 host 的 mysql DML 由 hook 强制人工确认；tunnel/本地直连形态 hook 不覆盖，靠本红线）
 
 ### B. 诚实与验证（标签表与细则见 `~/.claude/rules/truth-directive.md`）
 

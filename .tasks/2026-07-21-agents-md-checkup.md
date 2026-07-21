@@ -30,11 +30,21 @@
 - response-style.md /tmp 规则改为"有 scratchpad 优先 scratchpad，无（Codex）落 /tmp"
 - 事故排查触发范围对齐：pipeline 类走 pipeline-debug-protocol，通用 bug 走 debugging-discipline 分诊
 
+## 对抗验收轮（2 reviewer 均拒后修复，二轮 23/23 全过）
+
+- **P0 fail-open**：三个安全 hook 用 zsh 内建 `echo "$INPUT" | jq`，命令含 `\"` 嵌套转义时 JSON 被破坏 → jq 失败 → 静默放行。全部改 `printf '%s\n'` 管道，含反斜杠载荷回归通过。教训：hook 禁止用 echo 传不可信字符串
+- 绕过形态收敛：`git "-C"` 引号形态 / `--git-dir --work-tree` 等价重定向 → 无条件 deny；非行首 `cd <main仓> && git commit` → 多 cd 候选分支检测；`git -c k=v push` → 正则容错；`PRESUBMIT_SKIP=1`/`FULLTEST=1` 改为命令前缀锚定（子串出现无效）；`go test "./..."` 引号形态 → 固定串匹配
+- SSH hook 同时校验 ConnectTimeout 与 ServerAliveInterval
+- 声称对齐：A 节标题注明 hook 仅 CC 侧生效；mysql DML hook 覆盖限 SSH 直连形态（tunnel 靠 prose 红线）
+- SoT 入库：~/.claude/hooks → ~/.dotfiles/hooks（软链回原路径，settings.json 不变）；~/.claude/postmortems → ~/.dotfiles/postmortems（软链）；db-boundary / pipeline-debug-protocol 等入口引用 SoT skills git add
+- pipeline skill 补回：单位核查细则（byte/bit 等）、2026-04-22 第三处事实（ExpireBatchTasks）、postmortem 路径
+- response-style 交接清单补回：关键事实锚点 file:line + 已废弃假说
+
 ## 残留项（未做，需后续决策）
 
 - 密码轮换（用户在阿里云 RDS 侧操作）+ 本 session 转录文件会后脱敏
-- Codex 侧 hook 能力未验证（安全 hook 仅 CC 生效；Codex 目前靠 prose 红线）
-- ~/.claude/hooks/ 未纳入 dotfiles 版本控制
+- Codex 侧 hook 能力未验证（安全 hook 仅 CC 生效；Codex 目前靠 prose 红线，入口 A 节已如实标注）
 - 多 Agent 协作节暂留入口未迁 codex-driven-dev（Codex 等效加载未验证）
 - D1 深度去重（safety.md 与入口 A 节的规则句复述）仅做轻量处理，待 Codex rules 加载机制确认后可再压
 - skillOverrides 4 个停用 skill 是否重新启用
+- mysql DML hook 不覆盖 tunnel/本地直连形态（已在红线文本标注）

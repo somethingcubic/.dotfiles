@@ -1,0 +1,6 @@
+#!/bin/zsh
+# Auto-activate skills on every user prompt
+# Called by UserPromptSubmit hook
+cat <<'HOOKJSON'
+{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"<user-prompt-submit-hook>遵循 Multi-Model Orchestrator 委派策略：重型(多文件/>150行/红旗)→Codex, 中型(单文件/<150行)→Worker Agent, 轻型(<20行)→自己做, Review: 重型方案双向+实现单向, 中型Codex交叉</user-prompt-submit-hook>"}}
+HOOKJSON
