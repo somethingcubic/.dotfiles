@@ -46,7 +46,7 @@ if printf '%s\n' "$COMMAND" | grep -qE '(^|[;&|[:space:]])(git([[:space:]]+-[^[:
 
   # candidate repos: every `cd <path>` segment, else hook cwd
   CD_TARGETS=$(printf '%s\n' "$COMMAND" \
-    | grep -oE '(^|[;&|][[:space:]]*)cd[[:space:]]+[^;&|]+' \
+    | grep -oE "(^|[;&|(\"']|[[:space:]])[[:space:]]*cd[[:space:]]+[^;&|]+" \
     | sed -E 's/.*cd[[:space:]]+//' \
     | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^"//;s/"$//')
   typeset -a DIRS

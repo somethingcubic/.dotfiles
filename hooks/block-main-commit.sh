@@ -35,7 +35,7 @@ ON_MAIN=false
 B=$(branch_of "$PWD")
 { [ "$B" = "main" ] || [ "$B" = "master" ]; } && ON_MAIN=true
 CD_TARGETS=$(printf '%s\n' "$COMMAND" \
-  | grep -oE '(^|[;&|][[:space:]]*)cd[[:space:]]+[^;&|]+' \
+  | grep -oE "(^|[;&|(\"']|[[:space:]])[[:space:]]*cd[[:space:]]+[^;&|]+" \
   | sed -E 's/.*cd[[:space:]]+//' \
   | sed 's/^[[:space:]]*//;s/[[:space:]]*$//;s/^"//;s/"$//')
 if [ -n "$CD_TARGETS" ]; then
