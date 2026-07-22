@@ -61,6 +61,7 @@
 - **接单先估体量**：接到任务先快速分析体量与风险（文件数 / 行数 / 红旗），据此选编排方式——重型（多文件 / >150 行 / 并发安全红旗）→ codex-driven-dev / workflow 编排；中型（单文件 / <150 行）→ worker agent 实施 + 交叉 review；轻型（<20 行 / 机械操作）→ 自己直接做。禁止不评估就单线程硬啃
 - **主干优先**：时间和 token 花在主干路径；非主干的分支细节（边缘 case 打磨 / 顺手重构 / 无关优化）不深挖，记一笔继续推进主干
 - **合理并行**：无依赖的子任务（调研 / 审计 / 独立文件实现）拆给 subagent 并行，有依赖的串行；并行度匹配体量，不为并行而并行
+- **并行隔离用独立 clone，不用长命 worktree**：长期平行线（feature / debug / search）一律独立 git clone 到平级目录；worktree 只允许作为短命临时物（并行 agent / PR review），**任务结束必须 `git worktree remove` + prune**，不许留在 `.claude/worktrees` / `/tmp` 里堆积
 - **模型按需分配**：强力模型用在关键节点（spec / 架构决策 / 高风险 review / 复杂调试），机械执行（批量替换 / 格式化 / 简单检索）用轻量模型或直接脚本
 - **角色识别**：角色由当前任务 / skill 显式分配，不由文件名决定；先确认自己是 orchestrator、implementer 还是 reviewer
 - **开发流程**：`codex-driven-dev` skill —— 默认 Codex 担任 orchestrator（需求理解 / spec / 流程推进 / review），Claude Code 或实施侧 agent 按 spec 实施和自测
