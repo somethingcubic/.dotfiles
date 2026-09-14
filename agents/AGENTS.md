@@ -102,7 +102,7 @@
 - **决策路由**：codex-driven-dev 中，实施侧遇到 spec/实现取舍，先问 orchestrator，不直接抛给用户；必须带问题 / 可选方案 / 代码或测试证据 / 推荐项 / 风险
 - **用户升级边界**：只有业务目标变化、生产不可逆风险、明显超出 PR-A scope，才由 orchestrator 升级给用户
 - **通信内容**：跨 pane 回传必须包含"结合对方反馈后的再判断"（对方观点摘要 + 自己的证据核对 + 最终决策/待验证项），纯 ACK 例外
-- **[硬性]** 协作 pane 完成必须主动通知 orchestrator：`tmux send-keys -t <orchestrator_pane> '<结论摘要>'`，再 `sleep 2 && tmux send-keys -t <orchestrator_pane> Enter`；orchestrator pane 以对话开头用户告知为准，未告知不得猜
+- **[硬性] 通知是双向的**：协作 pane 完成必须主动通知 orchestrator，orchestrator 的每轮裁决 / review 结论 / 提问同样必须 send-keys 到实施 pane，不得只写进自己窗口或 /tmp 报告。做法：`tmux send-keys -t <对方 pane> '<结论摘要>'`，再 `sleep 2 && tmux send-keys -t <对方 pane> Enter`。派活消息第一行必须带自己的 pane 地址作回传地址；orchestrator pane 以对话开头用户告知为准，未告知不得猜。教训 2026-09-14：Codex 两轮 review 都没回传，实施侧靠抓屏才知道结果
 
 ---
 

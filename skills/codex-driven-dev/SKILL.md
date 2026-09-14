@@ -224,6 +224,7 @@ Review checklist:
 - Spend Gate independently verified for cost-bearing actions; tests passing alone is not enough.
 - File length, unused code, and obvious anti-patterns checked.
 - DB/schema/config/deploy implications checked when touched.
+- Conduct: diff stayed on the mainline scope, no unrequested defensive mechanisms or abstractions, and inference-based claims in spec/self-report are labeled ([推断]/[未验证]) instead of stated as fact.
 
 Verification scope follows the spec and project validation-cost table:
 

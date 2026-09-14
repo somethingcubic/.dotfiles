@@ -80,6 +80,31 @@ if printf '%s\n' "$CMD" | grep -qE 'cp.*/config/.*\.conf.*/etc/supervisor/'; the
     exit 0
 fi
 
+# Whitelist: 前端 dist 发布（deploy skill 文档化的 prod 流程）。前端产物是本地
+# build + scp 上来的 tarball，落地必然要在服务器上解包并覆盖 dist/ —— 产物本身
+# 来自 git 里的源码，不是"绕过 git 改服务器业务代码"。
+#
+# 收得很窄，四个条件同时成立才放行：
+#   (1) 命令里出现 staging 落点 /tmp/ordo-fe-stage-
+#   (2) 目标路径含 /ordo_ai/ordo-fe
+#   (3) 无 .. 路径穿越
+#   (4) 每个绝对路径都必须落在 /tmp/ 或 <repo>/ordo-fe/ 之下
+# 仍然拦住：写 /etc、写 ordo-backend、写任何其它业务代码或配置。
+if printf '%s\n' "$CMD" | grep -qF '/tmp/ordo-fe-stage-' \
+   && printf '%s\n' "$CMD" | grep -qE '/ordo_ai/ordo-fe' \
+   && ! printf '%s\n' "$CMD" | grep -qE '\.\./|/\.\.'; then
+    # 只取真正的绝对路径 token（行首/空白/引号之后紧跟 /），避免把
+    # "$STAGE/assets/." 这类变量展开后的相对片段误判成越界路径。
+    FE_BAD_PATH=$(printf '%s\n' "$CMD" \
+        | grep -oE '(^|[[:space:]"'"'"'=])/[^[:space:];|&"'"'"'>]*' \
+        | sed -E 's/^[[:space:]"'"'"'=]//' \
+        | grep -vE '^/tmp(/|$)|^/dev/null$|^/opt/[^/]+/ordo_ai/ordo-fe(/|$)' \
+        | head -1)
+    if [ -z "$FE_BAD_PATH" ]; then
+        exit 0   # 前端 dist 发布 — 允许
+    fi
+fi
+
 # Whitelist: pure /tmp cleanup. Removing diagnostic artifacts (heap dumps, sampler
 # scripts, watch logs) under /tmp is not a business-file change. Allowed ONLY when:
 #   (1) rm is present and the command actually targets a /tmp/ path,

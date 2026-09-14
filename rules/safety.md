@@ -13,7 +13,7 @@ description: 生产安全、SSH 安全、配置安全细则。刻意常驻（红
 
 # SSH & Remote Operation Safety (Mandatory)
 
-- **SSH 并发控制**：同一台服务器的 SSH 连接不得超过 3 个。发起新 SSH 命令前，先用 `ps aux | grep 'ssh.*<host>'` 检查残留连接，有则先 kill 再连。所有 SSH 命令必须设置超时：`ssh -o ConnectTimeout=10 -o ServerAliveInterval=5`。（`cmd-guards.sh` hook 对超时参数与已知 host 并发数做机械拦截）
+- **SSH 并发控制**：同一台服务器的 SSH 连接不得超过 6 个。发起新 SSH 命令前，先用 `ps aux | grep 'ssh.*<host>'` 检查残留连接，有则先 kill 再连。所有 SSH 命令必须设置超时：`ssh -o ConnectTimeout=10 -o ServerAliveInterval=5`。（`cmd-guards.sh` hook 对超时参数与已知 host 并发数做机械拦截）
 - **后台任务清理**：新会话开始时，检查是否有上次残留的 SSH/远程进程。会话中断后这些进程不会自动终止，会变成僵尸进程持续占用服务器连接，可导致 sshd 打满、所有人无法登录。
 - **批量操作前验证**：任何批量创建/插入/更新操作，必须先用 `SELECT COUNT(*)` 确认影响行数，确认符合预期后再执行。禁止未经验证直接执行可能影响大量数据的写操作。（`prod-safety.sh` 对生产 host 上的 mysql DML 强制人工确认）
 - **Shell 特殊字符多层转义**：密码或参数含 `*`、`&`、`!`、`$`、`()` 等元字符时，经过本地 shell → SSH → 远程 shell → mysql 多层传递极易被展开或截断。当引号嵌套超过 2 层时，必须改用临时文件或 stdin 管道方案（如 `echo "SQL" | ssh host 'mysql ...'`），禁止内联硬拼。

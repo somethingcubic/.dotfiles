@@ -30,6 +30,10 @@
 - 发布说明 / changelog → `release-note-writer`（同上，已停用）
 - 踩坑复盘（沉淀全局记忆） → `/postmortem`
 
+## 个人 TODO 工作台（跨项目，与项目内 TASK.md 无关）
+
+- 用户说"记个 todo / 看 todo / todo 整理" → CC 侧用 `/todo` skill；无 skill 的 agent（如 Codex）直接读写 `~/todos/`：`inbox.md` 只追加速记（`- [ ] MM-DD HH:MM 内容`），`TODO.md` 是看板，整理规则见 `~/.claude/skills/todo/SKILL.md`
+
 ## 常见组合工作流
 
 - **新需求 / 大改动**：`/think-map`（陌生仓库时）→ `/think-refine`（需求模糊时）→ `/think-plan` → `codex-driven-dev` → 实现 → `/simplify` → `verify` → `pre-submit-review` → push → `cross-review`

@@ -1,6 +1,6 @@
 #!/bin/zsh
 # cmd-guards.sh — PreToolUse(Bash) structural guards for CLAUDE.md red lines
-#   Guard 1: ssh must carry ConnectTimeout AND ServerAliveInterval; known-host concurrency <= 3
+#   Guard 1: ssh must carry ConnectTimeout AND ServerAliveInterval; known-host concurrency <= 6
 #   Guard 2: no full-tree `go test ./...` (verify skill tiering red line)
 #   Guard 3: git push / gh pr create require pre-submit-review marker
 #            (.git/presubmit-ok content == current HEAD sha)
@@ -16,7 +16,7 @@ deny() {
   exit 0
 }
 
-# ── Guard 1: SSH hygiene (red line: timeouts mandatory, per-host concurrency <= 3) ──
+# ── Guard 1: SSH hygiene (red line: timeouts mandatory, per-host concurrency <= 6) ──
 if printf '%s\n' "$COMMAND" | grep -qE '(^|[;&|[:space:]])ssh[[:space:]]'; then
   if ! printf '%s\n' "$COMMAND" | grep -q 'ConnectTimeout' \
      || ! printf '%s\n' "$COMMAND" | grep -q 'ServerAliveInterval'; then
@@ -25,8 +25,8 @@ if printf '%s\n' "$COMMAND" | grep -qE '(^|[;&|[:space:]])ssh[[:space:]]'; then
   for host in 8.219.202.238 8.222.139.116 47.84.22.38 api.ordo.global tapi.ordo.global ordo-refresh; do
     if printf '%s\n' "$COMMAND" | grep -qF "$host"; then
       N=$(pgrep -f "ssh.*$host" | wc -l | tr -d ' ')
-      if [ "$N" -ge 3 ]; then
-        deny "❌ host $host 已有 $N 个 ssh 连接（红线 ≤3）。先清残留: ps aux | grep ssh 后 kill"
+      if [ "$N" -ge 6 ]; then
+        deny "❌ host $host 已有 $N 个 ssh 连接（红线 ≤6）。先清残留: ps aux | grep ssh 后 kill"
       fi
     fi
   done
