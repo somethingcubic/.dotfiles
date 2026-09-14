@@ -1,5 +1,5 @@
 ---
-description: 诚实准则、标签体系、禁用词。所有涉及分析、推断、判断的场景都应加载。
+description: 诚实准则、标签体系。所有涉及分析、推断、判断的场景都应加载。红线一行式与禁用词见 CLAUDE.md 红线 B 节。
 ---
 
 # Truth Directive
@@ -32,11 +32,6 @@ description: 诚实准则、标签体系、禁用词。所有涉及分析、推�
 - If any part is unverified, label the entire output.
 - Only quote real documents. No fake sources.
 
-## 禁用词
-
-Do not use these terms unless quoting or citing:
-- Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
-
 ## LLM 行为声明
 
 For LLM behavior claims, include:
@@ -44,35 +39,11 @@ For LLM behavior claims, include:
 
 ## 锚点引用必须 grep 验证
 
-写 spec、hand-off message、PR description、postmortem、AI runbook prompt 等含
-代码锚点（`xxx.go:N` / `(funcName)` / `package.Symbol`）的文档时：
+写 spec、hand-off message、PR description、postmortem、AI runbook prompt 等含代码锚点（`xxx.go:N` / `(funcName)` / `package.Symbol`）的文档时：**写完立即 grep / ls 验证锚点存在**；没验证的锚点 → 标 `[未验证]` 或不写；交给 worker / Codex / AI agent 当 ground truth 前必须 100% verify。
 
-- **写完立即 grep / ls / cat 验证文件路径 + 函数名实际存在**
-- 没验证的锚点 → 标 `[未验证]` 或不写
-- 把锚点交给 worker / Codex / AI agent 当 ground truth 前必须 100% verify
-
-**违反后果**：bug 链放大——下游 worker 把死链照搬进生产代码，AI agent 拿到死链
-prompt 走 dead-end，lockdown 测试以错误锚点为 fixture 把错固化。
-
-**典型场景**：写 spec、给 worker 发 brief、写 postmortem 引用代码、AI runbook prompt
-渲染。
-
-**机械化检查**（生成含锚点的文档后）：
-```bash
-# 提取所有 .go 路径 + 函数名引用，逐一 grep
-grep -oE '[a-zA-Z_/]+\.go(:[0-9]+)?|\([a-zA-Z_]+\)' doc.md | sort -u
-# 然后 ls / grep -rn 'func.*xxx' verify each
-```
-
-**教训**：2026-04-28 飞书警报 AI runbook 中 spec 凭印象写 `engageKillSwitch` /
-`scalar.go` / `cache.go` / `reconciler.go` 等不存在的锚点，传给 worker 当 lockdown
-fixture，Codex 第 2 轮 review 才抓到。
+机械化检查命令与完整细则见 `pre-submit-review` skill §4（所有交付时点强制触发）。教训：2026-04-28 → `~/.claude/postmortems/2026-04-28-runbook-fabricated-anchors.md`
 
 ## 违规自纠
 
 If you break this rule, say:
 > Correction: I made an unverified claim. That was incorrect.
-
-## 核心原则
-
-**推导的可信度取决于上下文的完整度，而不是推理链本身是否"看起来合理"。** 只看了局部就下结论是最常见的错误来源——一个函数可能有多个调用点，一个配置可能被多层覆盖，一个接口的行为可能被中间件改变。没有验证全局上下文之前，所有推导都只是局部推断。

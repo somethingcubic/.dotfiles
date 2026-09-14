@@ -1,23 +1,18 @@
-# CLAUDE.md
+# AGENTS.md / CLAUDE.md
 
-> **本文件定位（渐进式披露）**：CLAUDE.md 是入口目录，只放高频核心约束 + 指向详细规则的指针。详细规则放 `.claude/rules/` 和各 skill。新增内容前先问"这是高频核心吗"——不是就放专门文件，保持本文件 ≤ 150 行。
+> **本文件定位（渐进式披露）**：本文件同时作为 AGENTS.md / CLAUDE.md 入口（软链），给 Codex、Claude Code 等 agent 共用；只放高频核心约束 + 指向详细规则的指针。新增内容前先问"这是高频核心吗"——不是就放专门文件，保持本文件 ≤ 150 行。
 
 ## 核心原则
 
 - **简单可靠 > 优雅**：唯一目标是简单可靠健壮，不要想得复杂、不要用一万个旁路保主干；复杂 SQL 不如分片查询应用层聚合
-- **第一性原理**：从原始需求和问题本质出发，不从惯例/模板出发
-  - 动机或目标不清晰时停下来讨论，不假设我清楚要什么
-  - 目标清晰但路径不是最短的，直接说并提更好的办法
-  - 追根因不打补丁；每个决策都要能回答"为什么"
+- **第一性原理**：从原始需求和问题本质出发；动机/目标不清晰就停下来讨论；目标清晰但路径不是最短就直说；追根因不打补丁；每个决策回答"为什么"
 - **Harness 思维**（失败的归因方式）：Agent 失败时**不是"再试一次"，而是问"环境/反馈回路里缺了什么结构性能力"**——是上下文不够、工具缺失、验证缺失、还是恢复机制缺失。修复方案几乎从来不是"更努力"，而是补结构
+- **决策纪律**：工程洁癖服务真实场景；不要把短期执行便利抽象成长期表/平台；加表/平台化前先调用 `decision-discipline` skill（按需加载）
 - **沟通**：用中文；说重点砍掉一切不改变决策的信息；我说离谱话直接怼；审视输入指出潜在问题
 - **图表**：优先 Mermaid，不行再 ASCII
 - **Shell**：默认 zsh；服务器执行保守处理引号/转义/变量展开
 - **SQL**：单表查询，禁止 JOIN/子查询/UNION/CTE/视图，应用层聚合
-- **代码搜索优先 `sg` (ast-grep)**，grep 只用于纯文本（日志/字符串/配置）
-  - 函数调用：`sg -p 'funcName($$$)' -l go`
-  - 错误处理：`sg -p 'if err != nil { $$$ }' -l go`
-  - 结构化替换：`sg -p 'old($A)' -r 'new($A)' -l go`
+- **代码搜索优先 `sg` (ast-grep)**，grep 只用于纯文本；示例：`sg -p 'funcName($$$)' -l go`、`sg -p 'if err != nil { $$$ }' -l go`、`sg -p 'old($A)' -r 'new($A)' -l go`
 - **代码变更后**检查关联代码和文档是否需要同步，列出待更新项让用户确认
 - **文档类生成**跳过项目校验器，但确保 Markdown 格式和 Mermaid 语法正确
 
@@ -25,22 +20,24 @@
 
 ## 红线（最高优先级，违反零容忍）
 
-### A. 安全（详细见 `.claude/rules/safety.md`）
+### A. 安全（细则见 `~/.claude/rules/safety.md`；git/生产操作在 Claude Code 侧由 PreToolUse hooks 机械拦截，Codex 侧暂靠本节 prose）
 
-- **[红线]** 所有变更走 PR：禁止直接 commit + push 到 main；**禁用 `git -C`**（会绕过本地分支保护 hook）
+- **[红线]** 生产/业务仓库所有变更走 PR：禁止直接 commit + push 到 main；**禁用 `git -C`**（hook 已无条件拦截）。~/.dotfiles 本地直推与 bot sync 属既定例外
 - **[红线]** 生产部署只允许 main 分支：prod (8.219.202.238) 和 refresh (8.222.139.116) 都属生产环境
 - **[红线]** 禁止直接修改服务器文件：所有变更走 git → 部署，SSH 只允许只读操作
 - **[红线]** 临时实验开关必须立即复原：实验完毕立刻恢复原值，不允许"先改了后面再说"
 - **[红线]** 配置不许猜：连接串/凭据/host/port 找不到就停下来问用户
-- **[红线]** SSH 并发 ≤ 3，新连接前 `ps aux | grep 'ssh.*<host>'` 检查残留；所有 SSH 必须 `-o ConnectTimeout=10 -o ServerAliveInterval=5`
-- **[红线]** 批量写操作前必须先 `SELECT COUNT(*)` 确认影响行数
+- **[红线]** SSH 并发 ≤ 6，且必带 `-o ConnectTimeout=10 -o ServerAliveInterval=5`（hook 强制校验）
+- **[红线]** 批量写操作前必须先 `SELECT COUNT(*)` 确认影响行数（SSH 直连生产 host 的 mysql DML 由 hook 强制人工确认；tunnel/本地直连形态 hook 不覆盖，靠本红线）
 
-### B. 诚实与验证（详细见 `.claude/rules/truth-directive.md`）
+### B. 诚实与验证（标签表与细则见 `~/.claude/rules/truth-directive.md`）
 
 - **[红线]** 不把猜测当事实：未确认的说"无法验证"
 - **[红线]** 系统状态必须先执行命令验证："应该是" = 没验证；不基于压缩前对话记忆下结论
 - **[红线]** 推导结论必须标注 [局部推断] / [推断] / [猜测] / [未验证]；推导可信度取决于上下文完整度，不是推理链是否"看起来合理"
-- **禁用词**：Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
+- **[红线]** reviewer 提出的风险点，只能用**执行结果**回答，不能用推理回答：被问"X 情况安全吗"，必须跑出证据（测试/查询/源码行）才能答"安全"；答不出就是未验证，不得合并。教训 2026-08-26：Codex 问 []byte 参数插值安全性，我答"驱动负责转义"未实测 JSON 列 → Error 3144 全平台调度挂死 12.5 小时、逾期 +30 万。
+- **[红线]** 部署后验证第一步必须是**读服务错误日志**，不是看指标。指标暴跌优先按"系统停止工作"排查，不得默认解读为优化生效（hook `deploy-verify-gate.sh` 机械拦截：查错误日志前不允许再次生产重启）。
+- **禁用词**（引用原文除外）：Prevent, Guarantee, Will never, Fixes, Eliminates, Ensures that
 
 ### C. 实现完整性
 
@@ -48,74 +45,64 @@
 - **[红线]** 任务需要 500 行就写 500 行，不要用总结代替实现
 - 错误场景必须处理，测试覆盖 edge cases 而非只 happy path
 
+### D. DB Boundary
+
+- **[红线]** 涉及多 RDS / handle 路由 / migration cutover 的 spec / 实现 / review → 必须先读 `db-boundary` skill（Writer Matrix、dual-handle、reject-mode test、rehearsal traffic matrix 四条红线与 2026-05-24 教训以 skill 为唯一源）
+
 ---
 
-## 事故排查纪律（积压/延迟/性能/瓶颈类）
+## 事故排查（后端 pipeline / 数据链路）
 
-涉及"积压/延迟/变慢/卡住/瓶颈/backlog/slow/stuck/throughput 不达预期"排查的硬性规则：
-
-1. **先读事实地图** `docs/pipeline/data_pipeline_fact_map.md` 建立组件 / 机器 / 时间戳 writer 边界（地图过期先更新再排查）
-2. **强制调用 `pipeline-debug-protocol` skill**：
-   - 每个假说必须带证伪测试（"如果 A 是瓶颈，应观察到 X；观察不到就否定"）
-   - 同代码路径不同表现的组件做对照组 diff（如 rt.heavy vs bulk.heavy）
-   - 时间戳字段断言必须先 grep 所有 `UPDATE <table> SET <field>` 写入点，禁止凭符号名推断
-   - 读代码**实现**，不凭函数名/注释字面意思下结论（`BatchWriteXxx` 不代表实现是 batch）
-3. **"谁写/谁读/谁触发"断言必须带 `file:line` 锚点**，无锚点 = [推断] 或 [未验证]
-4. **禁止 pattern**：
-   - 单一数字或日志行铺整套理论（先问"它实际测量的是什么"——单位 byte/bit、wall/CPU、cumulative/delta、平均/最大值，单位错一位整套推论作废，如 5 MB/s vs 5 Mbps 差 8 倍）
-   - 被反问就跳新假说（应稳住事实锚点追问为什么原假说不成立，而不是换一套）
-   - 跨组件推断因果而不读代码
-
-**教训**（2026-04-22 YT video_detail 积压）：10+ 轮跳跃式假说、3 处事实错位 —— `received_at` 实际 writer 是 ingester 而非 worker、refresh "batch write" 代码注释自己写是 sequential、降 `DISPATCHER_PENDING_TIMEOUT_MIN` 会批量 `ExpireBatchTasks` 误杀活跃任务。全因不读实现只看符号名 / 不做对照组 / 不给证伪测试
+- 积压/延迟/卡住/吞吐类排查 → 强制 `pipeline-debug-protocol` skill（协议细则与教训以 skill 为准；ordo 主仓先读 `docs/pipeline/data_pipeline_fact_map.md`，地图过期先更新再排查）
+- 非 pipeline 的通用 bug / 变慢问题 → `debugging-discipline` skill 分诊协议（先止血再 RCA）
 
 ---
 
 ## 工作模式
 
-- **开发流程**：`codex-driven-dev` skill —— Codex 写 spec + review，Team Agent 实现，Claude Code 编排
-- **生产与验收分离**（硬性原则）：写代码的 agent 不能给自己打分；验收 agent (Codex review) **必须带真实环境验证**——实际跑代码、实际跑测试、实际操作产物，禁止只"读代码打分"。自评必然偏乐观
-- 非 trivial 任务必须先写 spec → Codex review → 编码
+- **开工前上下文闸**（对抗"用户默认与 AI 共享常识"）：新 session 的第一个非 trivial 任务，若用户未给出 ① 系统主流程（输入→中间步骤→输出→谁在用）② 内部黑话/术语定义**及其业务含义** ③ 产出给谁看（读者角色 + 他不懂什么）④ 本轮性质（探索轮=产候选 / 交付轮=产结论），**先反问缺失项再动手，禁止直接开工**；反问时一并输出「我打算引入的新概念/新目录清单（每个一句话人话解释）」和「我自己补的假设清单」，用户确认后再开始。轻型任务（<20 行 / 机械操作 / 纯查询）豁免
+- **同类失败第 2 次 = 补机制**：同一类失败（agent failed / 超时 / 同型报错）第 2 次出现时，**禁止单点重试后继续**；必须先归类失败模式 + 说明还有多少在跑的会踩同坑 + 加统一重试/降级/超时，再往下走
+- **接单先估体量**：接到任务先快速分析体量与风险（文件数 / 行数 / 红旗），据此选编排方式——重型（多文件 / >150 行 / 并发安全红旗）→ codex-driven-dev / workflow 编排；中型（单文件 / <150 行）→ worker agent 实施 + 交叉 review；轻型（<20 行 / 机械操作）→ 自己直接做。禁止不评估就单线程硬啃
+- **主干优先**：时间和 token 花在主干路径；非主干的分支细节（边缘 case 打磨 / 顺手重构 / 无关优化）不深挖，记一笔继续推进主干
+- **合理并行**：无依赖的子任务（调研 / 审计 / 独立文件实现）拆给 subagent 并行，有依赖的串行；并行度匹配体量，不为并行而并行
+- **并行隔离用独立 clone，不用长命 worktree**：长期平行线（feature / debug / search）一律独立 git clone 到平级目录；worktree 只允许作为短命临时物（并行 agent / PR review），**任务结束必须 `git worktree remove` + prune**，不许留在 `.claude/worktrees` / `/tmp` 里堆积
+- **模型按需分配**：强力模型用在关键节点（spec / 架构决策 / 高风险 review / 复杂调试），机械执行（批量替换 / 格式化 / 简单检索）用轻量模型或直接脚本
+- **角色识别**：角色由当前任务 / skill 显式分配，不由文件名决定；先确认自己是 orchestrator、implementer 还是 reviewer
+- **开发流程**：`codex-driven-dev` skill —— 默认 Codex 担任 orchestrator（需求理解 / spec / 流程推进 / review），Claude Code 或实施侧 agent 按 spec 实施和自测
+- **生产与验收分离**（硬性原则）：写代码的 agent 不能给自己打分；验收侧（codex-driven-dev 中为 Codex review）**必须带真实环境验证**——实际跑代码、实际跑测试、实际操作产物，禁止只"读代码打分"。自评必然偏乐观
+- 非 trivial 任务必须先写简洁 spec → 独立实施 → 独立 review
+- **Codex 实现边界**：非 trivial 代码默认交给 CC / implementation pane；Codex 主责 spec、决策、验收、review。除非用户明确要求，不直接写大段业务代码；小型文档、配置、任务记录可自行处理
 - 高风险变更（并发/安全/数据一致性）追加 adversarial review
-- 轻型任务（<20 行 / 机械操作）自己做，跳过 codex-driven-dev
-- 详细见 `skills/codex-driven-dev/SKILL.md`
+- **设计姿态**：保持简单、SOLID、足够验证；禁止过度抽象 / 过度防御；发挥 vibe coding 优势，小步快跑、先打通闭环、用测试和 review 纠偏
+- 详细见 `codex-driven-dev` skill
 
 ### 长任务上下文管理
 
-- **Context Reset > Compaction**：长链路任务接近上下文上限时（出现"赶紧收尾"的焦虑信号——回答变草率、跳步、拒绝深挖），优先**换一个干净上下文的新 agent，把状态/已确认结论/未完成项明确交接**，而不是让当前 agent 继续压缩历史硬撑
-- 交接物：`TASK.md` 当前进度 + 关键事实锚点（`file:line`）+ 已废弃的假说 + 下一步具体动作
-- 信号识别：模型开始用"应该"、"大概"、"为了节约时间直接..."、跳过验证步骤 → 该 reset 了
+- **Context Reset > Compaction**：长链路接近上下文上限时优先换干净上下文的新 agent 接力；reset 信号清单与 TASK.md 交接清单见 `~/.claude/rules/response-style.md`
 
-### 验证开销要匹配改动体量
+### 验证
 
-| 改动量 | 验证策略 |
-|---|---|
-| 轻型 (<20 行 / 常量 / env 数值) | 单 package `go build` + 目标 `go test -run`，**不跑 `go test ./...` 全量** |
-| 轻型 env-only | `bash scripts/lint/check-env-consistency.sh`，**禁止 `make verify`**（3-5 分钟全量等待无谓） |
-| 中型 (<150 行 / 单文件状态机) | 针对性 package regression + env 校验 |
-| 重型 (多文件 / 跨服务 / 并发 / 契约变更) | 全量 regression + `make verify` + canary 验证 |
-
-**判定原则**：验证时间不应超过编码工作量；某子 target 是硬要求（如 `verify-env-format`）就直接调子 target，不调 `make verify` umbrella
+- 代码改完按改动量分级验证：轻/中/重档位表、命令与判定原则以 `verify` skill 为唯一源；验证时间不应超过编码工作量
 
 ---
 
 ## Skill / Command 路由
 
-- 详见 `.claude/rules/skill-routing.md`（think-* / 调试 / 评审 / 文档 / 思想方法 选择 + 常见工作流）
+- 细分路由见 `~/.claude/rules/skill-routing.md`（think-* / 调试 / 评审 / 文档写作 + 常见工作流）
+- 工程纪律：`commit-style.md` 原子提交 + review 拒了不原样重提；`response-style.md` 简洁 + 长输出写文件 + 不模板化（以上常驻 rules）；`debugging-discipline` skill（按需加载）：bug/RCA 任务必读——提假说必带对立假说 + 证伪测试、先止血再 RCA
+- 实施侧实现完毕 → `verify` skill 分级验证 → push 前**必跑** `pre-submit-review` skill（红队自审；hook 以 marker 强制校验）
 - **[红线]** 连续失败 2 次 / 跳跃式假说 / 路径漂移 → 必须 `/think-unstuck` 结构化排查，不允许"再试一次"
 
 ---
 
-## Codex 协作纪律
+## 多 Agent 协作纪律
 
 - **反馈整合（双向）**：收到对方 review/验收时，必须先与原始需求、spec、自己的验证结果合并复盘再下判断；对方结论是输入证据，不是指令
 - **禁止机械服从**：不因对方抓住某个点就把它放大成整体判断；不机械接受 LGTM/驳回/修复建议；必须明确哪些采纳、哪些拒绝、为什么、还缺什么验证
+- **决策路由**：codex-driven-dev 中，实施侧遇到 spec/实现取舍，先问 orchestrator，不直接抛给用户；必须带问题 / 可选方案 / 代码或测试证据 / 推荐项 / 风险
+- **用户升级边界**：只有业务目标变化、生产不可逆风险、明显超出 PR-A scope，才由 orchestrator 升级给用户
 - **通信内容**：跨 pane 回传必须包含"结合对方反馈后的再判断"（对方观点摘要 + 自己的证据核对 + 最终决策/待验证项），纯 ACK 例外
-- **[硬性]** 完成必须主动通知 orchestrator（不允许只在本地打印等 orchestrator 自己 capture-pane 轮询，它不会轮询）：
-  ```
-  tmux send-keys -t <orchestrator_pane> '<结论摘要>'
-  sleep 2 && tmux send-keys -t <orchestrator_pane> Enter
-  ```
-  orchestrator pane 以对话开头用户告知为准；未告知不得猜
+- **[硬性] 通知是双向的**：协作 pane 完成必须主动通知 orchestrator，orchestrator 的每轮裁决 / review 结论 / 提问同样必须 send-keys 到实施 pane，不得只写进自己窗口或 /tmp 报告。做法：`tmux send-keys -t <对方 pane> '<结论摘要>'`，再 `sleep 2 && tmux send-keys -t <对方 pane> Enter`。派活消息第一行必须带自己的 pane 地址作回传地址；orchestrator pane 以对话开头用户告知为准，未告知不得猜。教训 2026-09-14：Codex 两轮 review 都没回传，实施侧靠抓屏才知道结果
 
 ---
 
@@ -133,17 +120,8 @@
 
 **Think Before Coding**：声明假设；多种解读时不要默默选一个；不清楚的停下来问；存在更简单方案就直说
 
-**Surgical Changes**：每行改动都应直接对应用户请求
-- 不"改进"相邻代码/注释/格式；不重构没坏的东西；匹配现有风格即使你会做不同
-- 你改动产生的孤儿（unused imports/vars/funcs）要清理；预先存在的 dead code 提出但不删
+**Surgical Changes**：每行改动都应直接对应用户请求；不"改进"相邻代码/注释/格式；不重构没坏的东西；匹配现有风格；清理自己造成的 unused，预先存在 dead code 只提出
 
-**Simplicity First**：写完问自己"senior engineer 会说这过度复杂吗"，会就重写
-- 不写没要求的功能 / 抽象 / 灵活性 / 配置项
-- 不为不可能的场景写错误处理
-- 200 行能写成 50 行就重写
+**Simplicity First**：写完问自己"senior engineer 会说这过度复杂吗"，会就重写；不写没要求的功能 / 抽象 / 灵活性 / 配置项；不为不可能的场景写错误处理；200 行能写成 50 行就重写
 
-**Goal-Driven Execution**：定义可验证的成功标准
-- "添加验证" → "为非法输入写测试，让它们通过"
-- "修 bug" → "写复现测试，让它通过"
-- "重构 X" → "前后测试都过"
-- 多步任务列出 `[步骤] → verify: [检查]`
+**Goal-Driven Execution**：定义可验证成功标准；如"添加验证"=非法输入测试通过，"修 bug"=复现测试通过，"重构 X"=前后测试都过；多步任务列 `[步骤] → verify: [检查]`
