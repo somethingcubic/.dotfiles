@@ -40,6 +40,7 @@ description: PR push 之前的红队自审 checklist。当你即将 git push、�
 - **如果我是 attacker：怎么用这个改动制造数据不一致 / 资源泄漏 / SQL 注入？**
 - **如果我是 ops：deploy 这个 commit 后 1 小时内最可能爆的 metric 是什么？**
 - **如果我是产品：这个改动对用户感知有什么副作用？我说过吗？**
+- **每一条"X 不受影响 / X 不会变"的否定式断言，grep 过所有写侧了吗？** 只 grep 读侧证明不了"不变"——证伪"某数据不变"要列出全部写入路径。教训 2026-09-16：声称"引用只进 wire body、OSS 正文不变"，只查了谁读 OSS，漏了 finalizer 用 ledger body 回写 OSS，对抗 review 判 BLOCKER。
 - **过程纪律：有没有偏离主线扩 scope？有没有加没被要求的防卫机制/抽象？推导性结论都按 truth-directive 标了 [推断]/[未验证] 吗？**
 
 写出至少 1 个"我自己都不太放心的点"。**不允许全部回答"没问题"**——如果你真的找不到弱点，再读一遍 diff，肯定漏了。
@@ -103,6 +104,10 @@ git rev-parse HEAD > "$(git rev-parse --git-dir)/presubmit-ok"
 ### 仍然不确定
 - <事项> —— 建议 Codex review 时重点看这一点
 ```
+
+## 本 skill 通过 ≠ 免对抗 review
+
+自审只能找到你已经想到的边界，找不到你实现时的错误前提本身——错误前提只有不带实现上下文的 reviewer 才能看见。中型以上改动（单文件 >150 行 / 多文件 / 触及数据落库、并发、安全）在 push 后必须再跑一轮独立对抗 review（fable / Codex，不给实现上下文，只给 diff + spec），不能因为 checklist 打满勾就当"已审过"。教训 2026-09-16：pre-submit 全绿后没跑对抗 review，用户问了才跑，一上来就是 BLOCKER。
 
 ## 反模式
 
