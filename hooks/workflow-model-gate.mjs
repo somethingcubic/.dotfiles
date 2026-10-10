@@ -30,15 +30,29 @@ function callEnd(src, start) {
   return src.length
 }
 
+// 找出字符串、模板字符串和注释之外的 agent( 调用位置
+function agentCalls(src) {
+  const out = []
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i]
+    if (c === '"' || c === "'" || c === '`') {
+      for (i++; i < src.length && src[i] !== c; i++) if (src[i] === '\\') i++
+      continue
+    }
+    if (c === '/' && src[i + 1] === '/') { while (i < src.length && src[i] !== '\n') i++; continue }
+    if (c === '/' && src[i + 1] === '*') { i = src.indexOf('*/', i + 2); if (i < 0) break; i++; continue }
+    const m = /^agent\s*\(/.exec(src.slice(i, i + 20))
+    if (m && !/[\w$.]/.test(src[i - 1] || '')) { out.push([i, i + m[0].length - 1]); i += m[0].length - 2 }
+  }
+  return out
+}
+
 const bad = []
-const re = /\bagent\s*\(/g
-let m
-while ((m = re.exec(script))) {
-  const open = m.index + m[0].length - 1
-  const call = script.slice(m.index, callEnd(script, open) + 1)
+for (const [at, open] of agentCalls(script)) {
+  const call = script.slice(at, callEnd(script, open) + 1)
   const missing = ['model', 'effort'].filter(k => !new RegExp(`\\b${k}\\s*:`).test(call))
   if (missing.length) {
-    const line = script.slice(0, m.index).split('\n').length
+    const line = script.slice(0, at).split('\n').length
     bad.push(`  第 ${line} 行 agent() 缺 ${missing.join(' 和 ')}`)
   }
 }
