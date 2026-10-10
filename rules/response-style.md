@@ -37,8 +37,9 @@
 
 ## 教训记录
 
-- 被用户纠正后，把教训写成一条规则，记进项目的 `.tasks/lessons.md`；跨项目的教训用 `/postmortem` 记到全局
-- 新 session 开始时，项目里有 `.tasks/lessons.md` 就先读
+- 被用户纠正后，把教训写成一条带日期的规则，记进 `~/.claude/lessons.md`。这个文件只存本机，不进任何 git 仓库；同一个仓库的多个 clone 共用它
+- 分节：「通用」放跨项目规则；仓库相关的放在 `## <owner>/<repo>` 节下（用 git remote 名，不用目录名）
+- 文件上限 60 行。同类教训第 2 次出现改成 hook；已写进 CLAUDE.md 或 skill 的删掉
 
 ## 长任务 token 焦虑信号
 
