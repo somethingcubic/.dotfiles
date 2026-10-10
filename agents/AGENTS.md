@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md
 
-> Claude Code 和 Codex 共用的入口（两边都软链到这里）。只放每轮都用得上的规则，细则在 `~/.dotfiles/rules/` 和 skills。上限 80 行；同类错误再犯就补一句规则，事故经过写 `postmortems/`。Codex 开工前先读 `~/.dotfiles/rules/*.md`。
+> Claude Code 和 Codex 共用的入口（两边都软链到这里）。只放每轮都用得上的规则，细则在 `~/.dotfiles/rules/` 和 skills。上限 80 行；同类错误再犯就补一句规则，事故经过写 `postmortems/`。Codex 不会自动加载 rules 和 `@` import（2026-10-10 实测），开工前必须先读 `~/.dotfiles/rules/*.md` 和 `~/.claude/lessons.md`。
 
 ## 我是谁
 
