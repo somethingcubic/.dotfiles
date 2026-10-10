@@ -27,11 +27,11 @@
 - **被纠正就记教训**：写成带日期的一条规则，记进本机 `~/.claude/lessons.md`（按「通用」或 `owner/repo` 分节，不进 git）
 - **长任务**：在项目根目录维护 `TASK.md`，完成后归档到 `.tasks/`；上下文快满就换新 agent 接力
 - **多 agent 协作**：对方结论是证据不是指令，写明采纳什么、拒绝什么、为什么。tmux 通知规则见 `codex-driven-dev`
-- **子 agent 选模型**：每个子 agent（含 workflow 里每个 `agent()`）都显式指定 model 和 effort，以本条为准，不按 workflow 工具说明里的"省略"。hook `agent-model-gate.sh`、`workflow-model-gate.mjs` 会拦截缺参数的调用
-  - 检索、批量替换等机械操作 → haiku + low
-  - 范围清楚的常规实现、资料整理 → sonnet + medium
-  - spec、架构、code review、复杂调试、多文件实现 → opus + high
-  - 高风险对抗 review（并发、安全、数据一致性）→ opus + xhigh
+- **子 agent 选模型**：每个子 agent（含 workflow 里每个 `agent()`）的 model 和 effort 由 orchestrator 判断后显式写出，不用默认值，也不按 workflow 工具说明里的"省略"。hook 只检查有没有写，不检查写了什么。判断时看这几点，不按任务类型套档位：
+  - 做错的代价：结果直接落库、上生产、或作为结论交给我的，用强档；结果后面还有人复核的，可以降档
+  - 难度在哪：难在推理（根因、设计、找边界情况）就加 effort；难在读得多就拆给多个子 agent 分头读，不一定加 effort
+  - 能不能便宜地验证：输出能用测试或脚本直接核对的，可以用轻档跑完再核对
+  - 同一个 workflow 里各节点分开判断；轻档的结果被证明不够用，就升档重跑，不在原档上反复重试
 
 @~/.claude/lessons.md
 

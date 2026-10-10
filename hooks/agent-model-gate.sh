@@ -1,5 +1,5 @@
 #!/bin/bash
-# agent-model-gate.sh — PreToolUse(Agent): 派子 agent 时必须显式指定 model 和 effort，按任务体量和难度选档（档位表见 AGENTS.md「并行」一条）。
+# agent-model-gate.sh — PreToolUse(Agent): 派子 agent 时必须显式指定 model 和 effort，按任务体量和难度选档（判断依据见 AGENTS.md「子 agent 选模型」）。
 # fork 类型继承父 agent 的模型，不检查。
 
 input=$(cat)
@@ -13,5 +13,5 @@ effort=$(jq -r '.tool_input.effort // empty' <<<"$input")
 missing=""
 [ -z "$model" ] && missing="model"
 [ -z "$effort" ] && missing="${missing:+$missing 和 }effort"
-echo "agent-model-gate: 派子 agent 必须显式指定 ${missing}。按 AGENTS.md 档位表选：检索/机械 → haiku+low；常规实现 → sonnet+medium；spec/review/复杂调试 → opus+high。" >&2
+echo "agent-model-gate: 派子 agent 必须显式指定 ${missing}。按 AGENTS.md「子 agent 选模型」判断：做错的代价、难度在推理还是在读得多（读得多就拆分）、能否便宜地验证。" >&2
 exit 2

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // workflow-model-gate.mjs — PreToolUse(Workflow): workflow 脚本里每个 agent() 调用都必须在 opts 里显式写 model 和 effort。
-// 由 orchestrator 按任务体量和难度选档（档位表见 AGENTS.md「子 agent 选模型」）。
+// 由 orchestrator 按任务体量和难度选档（判断依据见 AGENTS.md「子 agent 选模型」）。
 // 按名字调用的已保存 workflow 看不到脚本，不检查。
 
 import { readFileSync } from 'node:fs'
@@ -61,6 +61,6 @@ if (!bad.length) process.exit(0)
 process.stderr.write(
   'workflow-model-gate: workflow 里每个 agent() 都要在 opts 里直接写 model 和 effort（不要放在变量里展开）。\n' +
   bad.join('\n') + '\n' +
-  '按 AGENTS.md 档位表选：检索/机械 → haiku+low；常规实现 → sonnet+medium；spec/review/复杂调试 → opus+high；高风险对抗 review → opus+xhigh。\n'
+  '按 AGENTS.md「子 agent 选模型」判断：做错的代价、难度在推理还是在读得多（读得多就拆分）、能否便宜地验证。\n'
 )
 process.exit(2)
