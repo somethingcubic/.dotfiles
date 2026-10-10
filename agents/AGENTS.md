@@ -54,7 +54,7 @@
 @~/.claude/lessons.md
 
 - **并行**：subagent 用来保持主上下文干净，一个 subagent 只做一件事；没有依赖的子任务并行做
-- **子 agent 选模型**：orchestrator 每派一个子 agent（包括 workflow 里的每个 agent 节点），都按任务体量和难度显式指定 model 和 effort，不用默认值。Claude Code 侧由 hook `agent-model-gate.sh` 拦截没指定的调用
+- **子 agent 选模型**：orchestrator 每派一个子 agent（包括 workflow 里的每个 agent 节点），都按任务体量和难度显式指定 model 和 effort，不用默认值。Claude Code 侧由 hook 拦截没指定的调用：`agent-model-gate.sh` 检查 Agent 工具，`workflow-model-gate.mjs` 检查 workflow 脚本里的每个 `agent()`。workflow 工具自带的说明建议省略 model，以本条为准
 
   | 任务 | model + effort |
   |------|----------------|
