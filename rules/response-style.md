@@ -35,6 +35,11 @@
 
 如果你发现自己在写"As a user I want to..." / "Key metrics: A, B, C" 这种泛框架——停。
 
+## 教训记录
+
+- 被用户纠正后，把教训写成一条规则，记进项目的 `.tasks/lessons.md`；跨项目的教训用 `/postmortem` 记到全局
+- 新 session 开始时，项目里有 `.tasks/lessons.md` 就先读
+
 ## 长任务 token 焦虑信号
 
 出现以下任何一项 → 是该 reset 上下文了，不要硬撑：
