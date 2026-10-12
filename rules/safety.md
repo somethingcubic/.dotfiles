@@ -4,7 +4,7 @@ description: 生产安全、SSH 安全、配置安全细则。刻意常驻（红
 
 # Production Safety (Mandatory)
 
-- **生产/业务仓库所有代码变更必须走 PR**：禁止直接 commit + push 到 main 分支。所有变更必须切分支 → 提 PR → review → merge。例外仅限：~/.dotfiles 仓库的本地直推与 GitHub Actions bot sync（既定实践）。
+- **生产/业务仓库所有代码变更必须走 PR**：禁止直接 commit + push 到 main 分支。所有变更必须切分支 → 提 PR → review → merge。~/.dotfiles 也走 PR（本地 hook 拦截在 main 上 commit），可自己合并；例外仅限 GitHub Actions bot sync。
 - **禁止使用 `git -C` 执行 git 操作**：`git -C <path>` 会改变工作目录上下文，导致本地 hooks（如 `block-main-commit.sh`）的分支检测失效，绕过分支保护。所有 git 操作必须在仓库目录内用 `cd` 切换后执行。`block-main-commit.sh` 已对 `git -C` 无条件拦截。教训：2026-03-31 → `~/.claude/postmortems/2026-03-31-git-dash-c-main-push.md`
 - **生产部署只允许 main 分支**：任何涉及生产环境的部署操作（supervisorctl restart、服务重启、二进制替换等），必须先确认当前分支是 `main`。非 main 分支一律拒绝部署到生产环境，测试环境不受此限制。
 - **生产环境范围**：prod 服务器（8.219.202.238 / ordoai）和 refresh 服务器（8.222.139.116 / ordo-refresh / data-center）均属于生产环境，适用相同的安全规则。
