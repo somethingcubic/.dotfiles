@@ -25,12 +25,12 @@ fi
 
 # env -C / --chdir 同样改变 git 的运行目录而不经过 cd，cwd 检测看不到 → 与 git 写操作同现时禁用
 if printf '%s\n' "$COMMAND" | grep -qE '(^|[;&|(])[[:space:]]*env([[:space:]]+-[^[:space:]]+)*[[:space:]]+(-C|--chdir)([[:space:]]|=)' \
-  && printf '%s\n' "$COMMAND" | grep -qE '(^|[;&|[:space:]])git[[:space:]][^|;&]*(commit|merge|push)\b'; then
+  && printf '%s\n' "$COMMAND" | grep -qE '(^|[;&|[:space:]])git[[:space:]][^|;&]*(commit|merge|push)([^[:alnum:]_-]|$)'; then
   deny "❌ 禁用 env -C/--chdir 包裹 git 写操作（绕过分支保护检测）。请 cd 进仓库目录后执行 git。"
 fi
 
 # Skip unless the command contains a git write op (anywhere, incl. after cd/&&)
-GITOP='(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+(commit|merge|push)\b'
+GITOP='(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+(commit|merge|push)([^[:alnum:]_-]|$)'
 printf '%s\n' "$COMMAND" | grep -qE "$GITOP" || exit 0
 
 # ── Collect candidate run dirs: hook cwd + every `cd <path>` segment in the command ──
@@ -102,7 +102,7 @@ linear_verdict() {
   done
   return 0
 }
-if printf '%s\n' "$COMMAND" | grep -qE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+(commit|merge)\b'; then
+if printf '%s\n' "$COMMAND" | grep -qE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+(commit|merge)([^[:alnum:]_-]|$)'; then
   linear_verdict
   case $? in
     0) ON_MAIN=false ;;
@@ -111,10 +111,10 @@ if printf '%s\n' "$COMMAND" | grep -qE 'git([[:space:]]+-[^[:space:]]+([[:space:
 fi
 
 # Block: git commit / merge when any candidate dir is on main
-if printf '%s\n' "$COMMAND" | grep -qE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+commit\b'; then
+if printf '%s\n' "$COMMAND" | grep -qE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+commit([^[:alnum:]_-]|$)'; then
   [ "$ON_MAIN" = "true" ] && deny "❌ 禁止在 main 分支直接 commit（当前目录或命令内 cd 目标处于 main）。请先 git checkout -b <branch> 切分支后再提交。"
 fi
-if printf '%s\n' "$COMMAND" | grep -qE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+merge\b'; then
+if printf '%s\n' "$COMMAND" | grep -qE 'git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+merge([^[:alnum:]_-]|$)'; then
   [ "$ON_MAIN" = "true" ] && deny "❌ 禁止在 main 分支直接 merge。请通过 GitHub PR 合入 main。"
 fi
 

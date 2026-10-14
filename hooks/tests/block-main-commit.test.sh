@@ -52,6 +52,14 @@ check "command 前缀的 git 仍按目录判定"        deny  "$M" 'command git 
 check "env -C 改目录退回保守"                  deny  "$F" "env -C \"$M\" git commit -m x"
 check "提交说明里提到 env -C 不算"            allow "$M" "cd $F && git commit -m \"禁用 env -C/--chdir 包裹\""
 check "env -i -C 也拦"                         deny  "$F" "env -i -C \"$M\" git commit -m x"
+# 只读的连字符子命令不是 merge/commit（merge-base 曾被误拦）
+check "会话在 main，git merge-base 放行"       allow "$M" 'git merge-base HEAD origin/main'
+check "会话在 main，merge-base 后接判断放行"    allow "$M" 'git merge-base --is-ancestor a b && echo ok'
+check "会话在 main，commit-graph 放行"          allow "$M" 'git commit-graph verify'
+check "merge 后紧跟分号仍拦"                   deny  "$M" 'git merge; ls'
+check "merge 带参数仍拦"                       deny  "$M" 'git merge --no-ff other'
+check "merge 在行尾仍拦"                       deny  "$M" 'git merge'
+check "merge-base 和 merge 同现仍拦"           deny  "$M" 'git merge-base a b && git merge other'
 # 其他既有规则不受影响
 check "git -C 一律拦"                          deny  "$F" "git -C $F commit -m x"
 check "push 到 main 一律拦"                    deny  "$M" "cd $F && git push origin main"
