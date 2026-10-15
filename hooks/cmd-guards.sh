@@ -4,6 +4,7 @@
 #   Guard 2: no full-tree `go test ./...` (verify skill tiering red line)
 #   Guard 3: git push / gh pr create require pre-submit-review marker
 #            (.git/presubmit-ok content == current HEAD sha)
+#   Guard 4: tmux kill-server must name its server with -S or -L
 # NOTE: never pipe via `echo` — zsh builtin echo interprets backslashes and corrupts
 # JSON/commands containing \" (fail-open class found 2026-07-21). Use printf '%s\n'.
 
@@ -38,6 +39,16 @@ if printf '%s\n' "$COMMAND" | grep -qE '\bgo[[:space:]]+test\b' \
    && ! printf '%s\n' "$COMMAND" | grep -qE '^[[:space:]]*FULLTEST=1[[:space:]]'; then
   deny "❌ 禁止全量 go test ./...（验证分级红线）。按 verify skill 档位跑针对性测试；重型场景确需全量且经用户授权: 命令以 FULLTEST=1 前缀开头。"
 fi
+
+# ── Guard 4: tmux kill-server must name its server (incident 2026-10-15) ──
+# Placed before Guard 3, whose PRESUBMIT_SKIP path exits early.
+# Span = `tmux` .. `kill-ser` within one shell segment; also matches ["tmux", "kill-server"].
+TMUX_KILL_SPANS=$(printf '%s\n' "${COMMAND//$'\\\n'/ }" | grep -oE 'tmux[^;&|]*kill-ser')
+for span in ${(f)TMUX_KILL_SPANS}; do
+  if ! printf '%s\n' "$span" | grep -qE "(^|[[:space:]\"'])-[[:alnum:]]*[SL]"; then
+    deny "❌ tmux kill-server 必须用 -S <socket> 或 -L <name> 指明要关哪个 server。不指明时 tmux 先连环境变量 TMUX 指向的 server，TMUX_TMPDIR 会被忽略；agent 在 tmux 里运行时会关掉用户的主 server（2026-10-15 事故）。Bash 每次调用都是新 shell，上一次的 unset TMUX 不会保留。要关用户的主 server，请让用户自己执行。"
+  fi
+done
 
 # ── Guard 3: pre-submit-review marker gate on push / PR create ──
 if printf '%s\n' "$COMMAND" | grep -qE '(^|[;&|[:space:]])(git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+push\b|gh[[:space:]]+pr[[:space:]]+create\b)'; then
