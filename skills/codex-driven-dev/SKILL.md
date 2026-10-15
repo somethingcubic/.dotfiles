@@ -64,7 +64,7 @@ Comms rules:
 
 - **Instruction-first discipline**: explicit workflow/user instructions are the default execution boundary. If the orchestrator believes a workflow is inefficient, risky, or suboptimal, the orchestrator must stop and present the issue, alternatives, tradeoffs, and recommendation to the user or decision owner before changing behavior. General productivity habits, "better control", or "more visibility" never justify silently bypassing the protocol.
 - **No silent optimization**: the orchestrator may propose workflow improvements, but may not apply them implicitly. A local optimization is allowed only after authorization or when a higher-priority safety red line blocks the original instruction; in the latter case the orchestrator must state the conflict and the substituted path.
-- Send every tmux message with `~/.dotfiles/skills/codex-driven-dev/tmux-send.sh <pane> "<message>"`. It sends the text literally (`send-keys -l`), waits 1s, sends Enter as a separate call, then checks `capture-pane`, and serializes concurrent senders to the same pane with a lock. Only `SENT` counts as delivered. On `UNCONFIRMED`, read `capture-pane` first and resend once only if the message is not in the receiver's conversation.
+- `tmux send-keys` text and Enter are separate calls with `sleep 2`.
 - Implementer must actively notify the orchestrator when done or blocked; the orchestrator should not rely on pane polling as the normal feedback loop.
 - **Notification is bidirectional (hard rule)**: every orchestrator verdict, review result, fix decision, and question must also be sent to the implementer pane with `tmux send-keys`, not only written into the orchestrator's own window or a `/tmp` report. The first line of every dispatch message carries the sender's pane address as the reply address. Lesson: `LESSONS.md` #37 (PR #2038, review verdict was never sent back; the implementer waited until the user stepped in).
 - Long silence over 10 minutes: ask for status; do not infer half-written output.
@@ -200,7 +200,8 @@ Report facts only. Do not tell the reviewer what to focus on, do not provide a "
 
 When complete or blocked:
 
-~/.dotfiles/skills/codex-driven-dev/tmux-send.sh <orchestrator_pane> '<summary>'
+tmux send-keys -t <orchestrator_pane> '<summary>'
+sleep 2 && tmux send-keys -t <orchestrator_pane> Enter
 ```
 
 ## Phase 3: Orchestrator Review
@@ -317,7 +318,8 @@ Gate sequence:
 | Action | Command |
 |--------|---------|
 | List panes | `tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_pid} #{pane_current_command} #{pane_current_path}'` |
-| Send message | `~/.dotfiles/skills/codex-driven-dev/tmux-send.sh $PANE "text"` (prints `SENT` or `UNCONFIRMED`) |
+| Send text | `tmux send-keys -t $PANE "text"` |
+| Submit | `sleep 2 && tmux send-keys -t $PANE Enter` |
 | Interrupt | `tmux send-keys -t $PANE C-c` |
 
 ## Role Boundaries
