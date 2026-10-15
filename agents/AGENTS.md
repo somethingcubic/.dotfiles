@@ -43,6 +43,7 @@
 - 生产只部署 main 分支；禁止直接改服务器文件，SSH 只读
 - 临时实验开关用完立即恢复；连接串、凭据、host、port 找不到就问，不猜
 - 同一服务器 SSH ≤ 6 个，必带 `-o ConnectTimeout=10 -o ServerAliveInterval=5`
+- 关 tmux server 必带 `-S <socket>` 或 `-L <name>`（不带时连的是环境变量 TMUX 指向的用户主 server，2026-10-15 因此误关）；测试用独立 `-L` server，在同一次调用里建和关
 - 批量写之前先 `SELECT COUNT(*)`；SQL 只用单表查询，不用 JOIN、子查询、UNION、CTE、视图
 
 **B. 诚实与验证**（标签见 `rules/truth-directive.md`）
