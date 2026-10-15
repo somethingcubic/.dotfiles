@@ -23,6 +23,14 @@ check "-f 不是 socket 参数"                      deny  'tmux -f /dev/null ki
 check "命令名缩写"                               deny  'tmux kill-ser'
 check "Python 列表形式"                          deny  "python3 -c 'import subprocess; subprocess.run([\"tmux\", \"kill-server\"])'"
 check "参数写在 kill-server 之后无效"            deny  'tmux kill-server -L x'
+check "命令替换里"                               deny  'x=$(tmux kill-server)'
+check "反引号里"                                 deny  'x=`tmux kill-server`'
+check "sudo 前缀"                                deny  'sudo tmux kill-server'
+check "制表符分隔"                               deny  $'tmux\tkill-server'
+check "分号后不带空格"                           deny  'ls;tmux kill-server'
+check "&& 后不带空格"                            deny  'ls&&tmux kill-server'
+check "|| 后不带空格"                            deny  'true||tmux kill-server'
+check "花括号后不带空格"                         deny  '{tmux kill-server;}'
 check "文本里提到也拦（宁可误拦）"              deny  'grep -n "tmux kill-server" notes.md'
 check "反斜杠续行"                               deny  $'tmux \\\n  kill-server'
 check "PRESUBMIT_SKIP 前缀不跳过本条"            deny  'PRESUBMIT_SKIP=1 tmux kill-server'
@@ -43,5 +51,8 @@ check "kill-window"                              allow 'tmux kill-window -t @11'
 check "tmux ls"                                  allow 'tmux ls'
 check "只提到 kill-server 没有 tmux"             allow "grep -rn 'kill-server' ."
 check "TMUX_TMPDIR 大写不算 tmux 命令"           allow 'echo $TMUX_TMPDIR; ls'
+check "文件名里连写的两个词"                     allow 'git add postmortems/2026-10-15-tmux-kill-server-via-TMUX-env.md'
+check "路径里的 tmux 目录名"                     allow 'ls /tmp/tmux-501/ && cat notes/kill-server.md'
+check "名字里带 tmux 的其他程序"                 allow 'mytmux kill-server'
 
 exit $fail
