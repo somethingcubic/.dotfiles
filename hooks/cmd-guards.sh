@@ -4,7 +4,7 @@
 #   Guard 2: no full-tree `go test ./...` (verify skill tiering red line)
 #   Guard 3: git push / gh pr create require pre-submit-review marker
 #            (.git/presubmit-ok content == current HEAD sha)
-#   Guard 4: tmux kill-server must name its server with -S or -L
+#   Guard 4: tmux kill-server / kill-session must name a server other than the user's main one
 # NOTE: never pipe via `echo` — zsh builtin echo interprets backslashes and corrupts
 # JSON/commands containing \" (fail-open class found 2026-07-21). Use printf '%s\n'.
 
@@ -40,15 +40,20 @@ if printf '%s\n' "$COMMAND" | grep -qE '\bgo[[:space:]]+test\b' \
   deny "❌ 禁止全量 go test ./...（验证分级红线）。按 verify skill 档位跑针对性测试；重型场景确需全量且经用户授权: 命令以 FULLTEST=1 前缀开头。"
 fi
 
-# ── Guard 4: tmux kill-server must name its server (incident 2026-10-15) ──
+# ── Guard 4: tmux kill-server / kill-session must name a non-main server (incident 2026-10-15) ──
 # Placed before Guard 3, whose PRESUBMIT_SKIP path exits early.
-# Span = standalone `tmux` .. standalone `kill-ser` within one shell segment; also matches
+# Span = standalone `tmux` .. standalone `kill-ser` / `kill-ses` within one shell segment; also matches
 # ["tmux", "kill-server"]. Both must be whole words, so names like 10-15-tmux-kill-server.md pass.
+# Naming the user's main server explicitly counts as not naming one:
+#   -L default, -S /tmp/tmux-<uid>/default (or /private/tmp/...), -S built from $TMUX.
 TMUX_KILL_SPANS=$(printf '%s\n' "${COMMAND//$'\\\n'/ }" \
-  | grep -oE "(^|[[:space:]/\"'(\`;&|{])tmux[\"']?,?([[:space:]][^;&|]*)?[[:space:]\"']kill-ser")
+  | grep -oE "(^|[[:space:]/\"'(\`;&|{])tmux[\"']?,?([[:space:]][^;&|]*)?[[:space:]\"']kill-se[rs]")
 for span in ${(f)TMUX_KILL_SPANS}; do
-  if ! printf '%s\n' "$span" | grep -qE "(^|[[:space:]\"'])-[[:alnum:]]*[SL]"; then
-    deny "❌ tmux kill-server 必须用 -S <socket> 或 -L <name> 指明要关哪个 server。不指明时 tmux 先连环境变量 TMUX 指向的 server，TMUX_TMPDIR 会被忽略；agent 在 tmux 里运行时会关掉用户的主 server（2026-10-15 事故）。Bash 每次调用都是新 shell，上一次的 unset TMUX 不会保留。要关用户的主 server，请让用户自己执行。"
+  if ! printf '%s\n' "$span" | grep -qE "(^|[[:space:]\"'])-[[:alnum:]]*[SL]" \
+     || printf '%s\n' "$span" | grep -qE "(^|[[:space:]\"'])-[[:alnum:]]*L[[:space:]\"',]*default([[:space:]\"',]|$)" \
+     || printf '%s\n' "$span" | grep -qE "(^|[[:space:]\"'=])(/private)?/tmp/tmux-[0-9]+/default([[:space:]\"',]|$)" \
+     || printf '%s\n' "$span" | grep -qE '\$\{?TMUX([^_[:alnum:]]|$)'; then
+    deny "❌ tmux kill-server / kill-session 必须用 -S <socket> 或 -L <name> 指明一个不是用户主 server 的 server。不指明时 tmux 先连环境变量 TMUX 指向的 server，TMUX_TMPDIR 会被忽略；-L default、-S /tmp/tmux-<uid>/default、用 \$TMUX 拼出的 -S 都是用户的主 server。agent 在 tmux 里运行时会关掉用户的主 server 或会话（2026-10-15 事故）。Bash 每次调用都是新 shell，上一次的 unset TMUX 不会保留。要关用户的主 server 或会话，请让用户自己执行。"
   fi
 done
 

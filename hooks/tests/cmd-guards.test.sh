@@ -1,6 +1,6 @@
 #!/bin/bash
 # 正负例矩阵：bash hooks/tests/cmd-guards.test.sh
-# 目前只覆盖 Guard 4（tmux kill-server 必须用 -S 或 -L 指明 server）。
+# 目前只覆盖 Guard 4（tmux kill-server / kill-session 必须用 -S 或 -L 指明一个不是用户主 server 的 server）。
 hook="$(cd "$(dirname "$0")/.." && pwd)/cmd-guards.sh"
 fail=0
 
@@ -45,8 +45,31 @@ check "反斜杠续行带 -L"                          allow $'tmux -L x \\\n  k
 check "合并短参数 -vL"                           allow 'tmux -vL x kill-server'
 check "Python 列表带 -L"                         allow "python3 -c 'import subprocess; subprocess.run([\"tmux\", \"-L\", \"x\", \"kill-server\"])'"
 
+# 显式指明的是用户主 server：拦
+check "-L default"                               deny  'tmux -L default kill-server'
+check "-L 紧跟 default"                          deny  'tmux -Ldefault kill-server'
+check "-L 引号里的 default"                      deny  "tmux -L 'default' kill-server"
+check "合并短参数 -vL default"                   deny  'tmux -vL default kill-server'
+check "-S 主 server 的 socket"                   deny  'tmux -S /private/tmp/tmux-501/default kill-server'
+check "-S /tmp 下主 server 的 socket"            deny  'tmux -S /tmp/tmux-501/default kill-server'
+check "-S 取自 \$TMUX"                           deny  'tmux -S "${TMUX%%,*}" kill-server'
+check "-S 直接用 \$TMUX"                         deny  'tmux -S $TMUX kill-server'
+check "Python 列表 -L default"                   deny  "python3 -c 'import subprocess; subprocess.run([\"tmux\", \"-L\", \"default\", \"kill-server\"])'"
+
+# kill-session 同样要求指明非主 server
+check "裸 kill-session"                          deny  'tmux kill-session -t thtrial'
+check "kill-session 不带 -t"                     deny  'tmux kill-session'
+check "kill-session -L default"                  deny  'tmux -L default kill-session -t dev'
+check "kill-session 在 && 之后"                  deny  'tmux -L x ls && tmux kill-session -t dev'
+check "kill-session 带 -L"                       allow 'tmux -L probe kill-session -t x'
+check "kill-session 带 -S"                       allow 'tmux -S "$SOCK" kill-session -t x'
+
+# 名字或路径只是含 default：放行
+check "-L 名字以 default 开头"                   allow 'tmux -L default-probe kill-server'
+check "-S 变量名以 TMUX_ 开头"                   allow 'tmux -S "$TMUX_SOCK" kill-server'
+check "-S 测试目录下名为 default 的 socket"      allow 'tmux -S /tmp/th-x/tmux-501/default kill-server'
+
 # 其他 tmux 命令不受影响
-check "kill-session"                             allow 'tmux kill-session -t thtrial'
 check "kill-window"                              allow 'tmux kill-window -t @11'
 check "tmux ls"                                  allow 'tmux ls'
 check "只提到 kill-server 没有 tmux"             allow "grep -rn 'kill-server' ."
