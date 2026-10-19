@@ -81,7 +81,8 @@ def main():
             texts = turn_texts(path)
         except OSError:
             pass
-    last = (data.get("last_assistant_message") or "").strip()
+    last = data.get("last_assistant_message")
+    last = last.strip() if isinstance(last, str) else ""
     if last and last not in (t.strip() for t in texts):
         texts.append(last)
     bad = [t for t in texts if is_english(t)]

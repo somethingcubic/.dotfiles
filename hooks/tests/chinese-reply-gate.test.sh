@@ -25,7 +25,7 @@ stop() { # transcript_path [last_assistant_message] [stop_hook_active]
 
 check() { # name want(block|pass) stdin_json [reason 里应出现的文字]
   local out got
-  out=$(printf '%s' "$3" | python3 "$hook" 2>&1)
+  out=$(printf '%s' "$3" | python3 "$hook" 2>&1) || { echo "FAIL $1 (hook 异常退出) $out"; fail=1; return; }
   if printf '%s' "$out" | grep -q '"decision": "block"'; then got=block; else got=pass; fi
   if [ "$got" != "$2" ]; then echo "FAIL $1 (want $2 got $got) $out"; fail=1; return; fi
   if [ -n "${4-}" ] && ! printf '%s' "$out" | grep -qF "$4"; then echo "FAIL $1 (reason 缺「$4」) $out"; fail=1; return; fi
@@ -48,5 +48,7 @@ check "记录缺最后一段，stdin 中文：放行"          pass  "$(stop "$t
 check "记录完整中文回复：放行"                    pass  "$(stop "$tmp/zh.jsonl" "$ZH")"
 check "上一轮英文已被纠正，本轮中文：放行"        pass  "$(stop "$tmp/corrected.jsonl" "$ZH")"
 check "stop_hook_active 放行"                     pass  "$(stop "$tmp/race.jsonl" "$EN_LAST" true)"
+check "该字段不是字符串，仍按记录判断：拦"        block "$(jq -cn --arg p "$tmp/full.jsonl" '{transcript_path:$p,last_assistant_message:["x"]}')"
+check "该字段为 null，记录中文：放行"             pass  "$(jq -cn --arg p "$tmp/zh.jsonl" '{transcript_path:$p,last_assistant_message:null}')"
 
 exit $fail
