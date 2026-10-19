@@ -2,6 +2,8 @@
 """chinese-reply-gate.py — Stop: 本轮回复（含工具调用之间的进度短句）出现英文段落时拦下，要求用中文重述。
 
 只看最后一个轮次起点（用户输入、hook 反馈、定时唤醒）之后、assistant 的 text 块（不看 thinking 和工具输入）。
+最后一段回复以 stdin 的 last_assistant_message 为准：hook 启动时记录文件常常还没写入这一段
+（2026-10-19 实测 7 次 Stop 里 6 次，hook 启动后 0.1 秒内才写入），只读记录文件会漏拦。
 先去掉代码块、行内代码、URL 和路径，再按「拉丁字母数 vs 汉字数」判断。
 stop_hook_active 为真时放行，避免反复拦截。用户明确要求英文时由用户自行关掉。
 起因：2026-10-12 同一 session 两次用英文回复（lessons.md「通用」）。
@@ -72,13 +74,18 @@ def main():
         return 0
     if data.get("stop_hook_active"):
         return 0
+    texts = []
     path = data.get("transcript_path")
-    if not path:
-        return 0
-    try:
-        bad = [t for t in turn_texts(path) if is_english(t)]
-    except OSError:
-        return 0
+    if path:
+        try:
+            texts = turn_texts(path)
+        except OSError:
+            pass
+    last = data.get("last_assistant_message")
+    last = last.strip() if isinstance(last, str) else ""
+    if last and last not in (t.strip() for t in texts):
+        texts.append(last)
+    bad = [t for t in texts if is_english(t)]
     if not bad:
         return 0
     sample = bad[0].strip().replace("\n", " ")[:120]
