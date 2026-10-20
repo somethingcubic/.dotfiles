@@ -2,8 +2,11 @@
 # prod-agent-timebox-gate.sh — PreToolUse(Agent|Workflow): 派去查生产的子 agent / workflow 必须写明时长上限。
 # 起因：2026-10-10、2026-10-13 两次后台任务长时间不汇报（后一次查生产的节点跑了 24 小时）。
 # 判定：prompt（Agent）或脚本（Workflow）提到生产主机、ssh、prod 或「生产」时，必须含显式标记
-#   时限：<N> 分钟     （冒号全角半角都可，N ≤ 120）
+#   时限：<N> 分钟     （冒号全角半角都可，可写 ≤，N ≤ 120）
 # 标记写在 prompt 里，子 agent 看得到；超时就交已有结果。hook 不检查 orchestrator 有没有按时查进度。
+
+# 桌面端调 hook 时 LC_CTYPE=C（2026-10-20 实测），从终端启动时可能是 UTF-8。固定成 C，两边按同样的字节规则匹配。
+export LC_ALL=C
 
 input=$(cat)
 tool=$(jq -r '.tool_name // empty' <<<"$input")
@@ -28,7 +31,8 @@ esac
 prod_re='8\.219\.202\.238|8\.222\.139\.116|(^|[^A-Za-z])(ssh|prod)([^A-Za-z]|$)|生产'
 grep -qiE "$prod_re" <<<"$text" || exit 0
 
-minutes=$(grep -oE '时限[:：][[:space:]]*≤?[[:space:]]*[0-9]+[[:space:]]*分钟' <<<"$text" | grep -oE '[0-9]+' | head -1)
+# 按字节匹配时「：」「≤」各占 3 个字节，放进 [] 或直接接 ? 都会被拆开（全角冒号只认第一个字节，≤ 的前两个字节变成必需），所以写成分组。
+minutes=$(grep -oE '时限(:|：)[[:space:]]*(≤)?[[:space:]]*[0-9]+[[:space:]]*分钟' <<<"$text" | grep -oE '[0-9]+' | head -1)
 if [ -n "$minutes" ] && [ "$minutes" -ge 1 ] && [ "$minutes" -le 120 ]; then
   exit 0
 fi
