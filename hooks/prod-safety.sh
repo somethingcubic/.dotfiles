@@ -129,7 +129,7 @@ if [ "$IS_PROD" = "true" ] && printf '%s\n' "$CMD_LOWER" | grep -qE "$WRITE_PATT
   "hookSpecificOutput": {
     "hookEventName": "PreToolUse",
     "permissionDecision": "deny",
-    "permissionDecisionReason": "🚫 禁止通过 SSH 直接修改服务器文件。所有变更必须通过 git commit/merge + 正常部署流程上线。"
+    "permissionDecisionReason": "🚫 禁止通过 SSH 直接修改服务器文件。所有变更必须通过 git commit/merge + 正常部署流程上线。如果这条命令只读、是被误判的：常见原因是 SQL 或 awk/python 里的 <> 和 >=（被当成重定向）、sed 之后出现 -i 子串、printf ... >、grep 模式里写了 rm -rf；改写成 !=、not (a < b)，或去掉这些子串后重试。真要写服务器文件，不要换写法绕过，交给用户执行。"
   }
 }
 EOF
