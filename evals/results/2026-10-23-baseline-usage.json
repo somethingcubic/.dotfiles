@@ -1,0 +1,28 @@
+{
+  "window_utc": [
+    "2026-10-09T04:33:53",
+    "2026-10-23T04:33:53"
+  ],
+  "main_sessions": 129,
+  "compacted_main_sessions": 18,
+  "resident_tokens": {
+    "sessions": 120,
+    "median": 65163.5,
+    "p90": 95280,
+    "min": 0
+  },
+  "spawn_calls": {
+    "agent": 200,
+    "agent_fork": 4,
+    "agent_tag:无标签": 200,
+    "agent_worktree": 12,
+    "workflow": 190,
+    "workflow_tag:无标签或按路径调用": 190
+  },
+  "subagents": {
+    "agent": 134,
+    "agent_repo_code_edit": 25,
+    "workflow": 768,
+    "workflow_repo_code_edit": 161
+  }
+}

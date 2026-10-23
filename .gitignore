@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 skills/.system/
 node_modules/
+evals/.runs/
