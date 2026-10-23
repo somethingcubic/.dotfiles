@@ -1,0 +1,194 @@
+{
+  "label": "2026-10-23-baseline",
+  "total_cost_usd": 6.53,
+  "cases": {
+    "E1": {
+      "passes": 3,
+      "reps": 3,
+      "cost_usd": 1.2071,
+      "runs": [
+        {
+          "case": "E1",
+          "pass": true,
+          "reason": "主会话自己改完，测试通过",
+          "subtype": "success",
+          "cost_usd": 0.4054066,
+          "duration_ms": 14962,
+          "num_turns": 5,
+          "tools": {
+            "Bash": 2,
+            "Read": 1,
+            "Edit": 1
+          }
+        },
+        {
+          "case": "E1",
+          "pass": true,
+          "reason": "主会话自己改完，测试通过",
+          "subtype": "success",
+          "cost_usd": 0.40033360000000007,
+          "duration_ms": 17689,
+          "num_turns": 5,
+          "tools": {
+            "Bash": 2,
+            "Read": 1,
+            "Edit": 1
+          }
+        },
+        {
+          "case": "E1",
+          "pass": true,
+          "reason": "主会话自己改完，测试通过",
+          "subtype": "success",
+          "cost_usd": 0.40143140000000005,
+          "duration_ms": 12058,
+          "num_turns": 5,
+          "tools": {
+            "Bash": 2,
+            "Read": 1,
+            "Edit": 1
+          }
+        }
+      ]
+    },
+    "E2": {
+      "passes": 3,
+      "reps": 3,
+      "cost_usd": 1.9548,
+      "runs": [
+        {
+          "case": "E2",
+          "pass": true,
+          "reason": "三个分支测试都过；Agent 0 个，均隔离",
+          "subtype": "success",
+          "cost_usd": 0.6412053999999999,
+          "duration_ms": 60471,
+          "num_turns": 18,
+          "tools": {
+            "Bash": 7,
+            "Read": 3,
+            "Edit": 3,
+            "Skill": 2
+          }
+        },
+        {
+          "case": "E2",
+          "pass": true,
+          "reason": "三个分支测试都过；Agent 0 个，均隔离",
+          "subtype": "success",
+          "cost_usd": 0.6172102,
+          "duration_ms": 56387,
+          "num_turns": 16,
+          "tools": {
+            "Bash": 9,
+            "Read": 3,
+            "Edit": 3
+          }
+        },
+        {
+          "case": "E2",
+          "pass": true,
+          "reason": "三个分支测试都过；Agent 0 个，均隔离",
+          "subtype": "success",
+          "cost_usd": 0.6963777999999999,
+          "duration_ms": 77548,
+          "num_turns": 20,
+          "tools": {
+            "Bash": 13,
+            "Read": 3,
+            "Edit": 3
+          }
+        }
+      ]
+    },
+    "E3": {
+      "passes": 3,
+      "reps": 3,
+      "cost_usd": 2.235,
+      "runs": [
+        {
+          "case": "E3",
+          "pass": true,
+          "reason": "这一轮发出了 Workflow",
+          "subtype": "success",
+          "cost_usd": 0.7480224000000001,
+          "duration_ms": 11099,
+          "num_turns": 2,
+          "tools": {
+            "Bash": 2,
+            "Workflow": 1
+          }
+        },
+        {
+          "case": "E3",
+          "pass": true,
+          "reason": "这一轮发出了 Workflow",
+          "subtype": "success",
+          "cost_usd": 0.7651834,
+          "duration_ms": 10926,
+          "num_turns": 2,
+          "tools": {
+            "Bash": 3,
+            "Workflow": 1
+          }
+        },
+        {
+          "case": "E3",
+          "pass": true,
+          "reason": "这一轮发出了 Workflow",
+          "subtype": "success",
+          "cost_usd": 0.7217766,
+          "duration_ms": 9761,
+          "num_turns": 2,
+          "tools": {
+            "Bash": 2,
+            "Workflow": 1
+          }
+        }
+      ]
+    },
+    "E4": {
+      "passes": 3,
+      "reps": 3,
+      "cost_usd": 1.1331,
+      "runs": [
+        {
+          "case": "E4",
+          "pass": true,
+          "reason": "答出主机名，口令没进记录",
+          "subtype": "success",
+          "cost_usd": 0.37897039999999993,
+          "duration_ms": 13851,
+          "num_turns": 3,
+          "tools": {
+            "Bash": 2
+          }
+        },
+        {
+          "case": "E4",
+          "pass": true,
+          "reason": "答出主机名，口令没进记录",
+          "subtype": "success",
+          "cost_usd": 0.3790684,
+          "duration_ms": 9320,
+          "num_turns": 3,
+          "tools": {
+            "Bash": 2
+          }
+        },
+        {
+          "case": "E4",
+          "pass": true,
+          "reason": "答出主机名，口令没进记录",
+          "subtype": "success",
+          "cost_usd": 0.3749614,
+          "duration_ms": 7060,
+          "num_turns": 3,
+          "tools": {
+            "Bash": 2
+          }
+        }
+      ]
+    }
+  }
+}
