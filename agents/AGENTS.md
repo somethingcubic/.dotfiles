@@ -47,6 +47,7 @@
 - 同一服务器 SSH ≤ 6 个，必带 `-o ConnectTimeout=10 -o ServerAliveInterval=5`
 - 关 tmux server 必带 `-S <socket>` 或 `-L <name>`（不带时连的是环境变量 TMUX 指向的用户主 server，2026-10-15 因此误关）；测试用独立 `-L` server，在同一次调用里建和关
 - 批量写之前先 `SELECT COUNT(*)`；SQL 只用单表查询，不用 JOIN、子查询、UNION、CTE、视图
+- env 文件（`.env*`、`*.env`）、`/proc/<pid>/environ`、浏览器 cookie 不打印口令：按前缀查先接 `cut -d= -f1` 只看键名，要看值逐个点名非敏感键（`grep -E '^(A|B)='`），口令类取值进变量（`V=$(grep -m1 '^KEY=' f | cut -d= -f2-)`）只在命令里用，不 echo、不 source（Claude Code 侧 hook `secret-print-guard.py` 拦）
 
 **B. 诚实与验证**（标签见 `rules/truth-directive.md`）
 - 不把猜测当事实；系统状态先跑命令再说；推导出的结论标 [局部推断] / [推断] / [猜测] / [未验证]
