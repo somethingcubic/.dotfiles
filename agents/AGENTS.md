@@ -20,8 +20,8 @@
 - **简单可靠优先**：选最简单、能验证的方案；不加没要求的功能、抽象、配置和兜底；找根因，不打补丁。写完问"Super Expert 会说这过度复杂吗"
 - **先问清楚**：新 session 第一个非 trivial 任务，缺这四项且会让方向做错的先问：系统主流程、内部术语的业务含义、产出给谁看、这一轮是探索还是交付。能用合理默认值推进的，写明假设直接做。<20 行或纯查询不用问
 - **先规划**：3 步以上先写计划（plan mode），我确认后再改。计划先排到第一个可交付版本，打磨项单列在后；计划写进 `TASK.md` 并逐项打勾；跑偏就停下重新规划
-- **按体量选做法**：<20 行自己做；单文件 <150 行交给 worker agent 再交叉 review；更大或涉及并发安全走 `codex-driven-dev` 或 workflow。谁来编排看任务决定
-- **已读过的代码用 fork**：改动落在主会话已读过的代码里时，派 `subagent_type: "fork"`（继承主会话上下文，不重读代码），不开从零读起的新 agent 或 workflow；只有主会话没读过的领域才开新 agent，并在派单里写明改哪个函数、哪几行（2026-10-21 用户定：正文金额改动派 workflow 后 agent 重读 3 份背景和全部调用方）
+- **要不要开子 agent**：每个任务开工前自己判断，不等我开关 ultracode（ultracode 开着也按这条，不默认开 workflow）。默认在主会话里读、改、跑定向测试。只在四种情况开子 agent 或 workflow，派单的 description（workflow 是 meta.description）以对应标签开头（hook 检查）：`[并行只读]` 几项互不依赖的调研、盘点、搜索，每路只交回结论；`[独立验证]` 审查、对抗复核、跑测试，验证者不需要实现时的上下文；`[大范围读取]` 要读的远多于之后要用的（大日志、大批文件、transcript），读完只回结论；`[并行修复]` 几个互不相关的修复同时做，每个带 `isolation: "worktree"`，按集成分支流程合并。不开：按「写 → 测 → 审」接力拆分、一项要用另一项的输出、改主会话已读过的代码。我明确要求开 agent 或 workflow 时照做，选最接近的标签。体量大或涉及并发安全时仍可走 `codex-driven-dev`
+- **已读过的代码主会话自己改**：改动落在主会话已读过的代码里时主会话自己改；要和别的工作并行时派 `subagent_type: "fork"`（继承上下文，不重读代码），fork 和主会话同时改文件时带 `isolation: "worktree"`。只有主会话没读过的领域才开新 agent，并在派单里写明改哪个函数、哪几行（2026-10-21 用户定：正文金额改动派 workflow 后 agent 重读 3 份背景和全部调用方）
 - **派单按工作量估时**：写代码的派单只跑改动直接相关的测试、不读无关文档、截图等部署后看；prompt 写「预计：K 分钟」和「时限：N 分钟」，N ≤ max(15, 1.5K)（hook `dispatch-estimate-gate.sh` 拦）；给用户报的时间用 K，不用时限
 - **证明才算完成**：完成前拿出测试、日志或 diff。写代码的 agent 不给自己验收，验收必须实际跑。高风险改动加对抗 review
 - **只改被要求的**：不顺手重构，不改无关代码；改完列出需要同步的代码和文档，等我确认
@@ -62,4 +62,4 @@
 
 - pipeline 积压/延迟/吞吐 → `pipeline-debug-protocol`（ordo 主仓先读 `docs/pipeline/data_pipeline_fact_map.md`）；其他 bug → `debugging-discipline`；加表或平台化前 → `decision-discipline`
 - 改完 → `verify`；push 前 → `pre-submit-review`（hook 检查 marker）
-- 代码搜索优先 `sg`（ast-grep）；并行隔离用独立 clone，worktree 用完即 `git worktree remove` 并 prune
+- 代码搜索优先 `sg`（ast-grep）；子 agent 并行改文件用 `isolation: "worktree"`，自己手动并行隔离用独立 clone；worktree 用完即 `git worktree remove` 并 prune
