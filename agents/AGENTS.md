@@ -38,6 +38,12 @@
 
 @~/.claude/lessons.md
 
+## 知识库（跨项目记忆）
+
+- 主库 `~/Documents/AgentVault`（Obsidian）。非 trivial 任务开工前读它的 `index.md`，按 git remote 或目录名找到项目，读该项目 `overview.md` 和 `status.md`；做决策或碰到旧坑再读 `decisions.md`、`pitfalls.md`。纯问答、<20 行改动、子 agent 不读（派单里点名的除外）
+- 库与本文件或 lessons.md 冲突时，以本文件和 lessons.md 为准，并在回复里指出冲突
+- 白天不改库；我说「记到知识库」时直接编辑对应笔记，由每晚 22:00 的定时任务提交
+
 ## 红线（违反零容忍）
 
 **A. 安全**（细则 `rules/safety.md`；Claude Code 侧有 hooks 拦截，Codex 侧只靠这里）
