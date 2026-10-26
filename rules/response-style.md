@@ -1,59 +1,23 @@
 # Response Style
 
-## 简洁是默认
+> 长度上限、写文件的门槛、禁用词见 AGENTS.md「沟通与输出」；文风见 `plain-prose` skill。这里只写那两处没有的细则。
 
-- 不写"highlights"、"摘要"、"总结"段除非用户明确要求
-- 不复述上下文（用户刚说的话不要再说一遍）
-- 不解释自己要做什么的元描述（"我先 X 然后 Y"）—— 直接做
-- 不写客套话（"好的！"、"明白！"、"很高兴帮你！"）
+- 不写「highlights」「摘要」「总结」段，除非用户要；不复述用户刚说的话；不写「我先 X 然后 Y」这类元描述，直接做；不写客套话。
+- 给用户讲原因，先用用户看得到的事讲清「谁做了什么 → 系统看到什么 → 结果怎样」，不出现规则名、函数名、代码里的概念；技术细节放报告。
+- 长输出写文件的位置：临时分析放 harness 给的 scratchpad，没有 scratchpad 的 agent（如 Codex）放 `/tmp/<topic>-YYYYMMDD.md`；项目相关的 spec、postmortem 放 `reports/tech/` 或 `.tasks/`；复用性高的放用户指定的位置。
 
-简单问题给简单答案。一个 yes/no 问题不需要标题分节。
+## 设计提案不套模板
 
-## 长输出写文件
-
-任何超过 **30 行**的输出（spec、报告、长 diff、批量分析）必须写到文件，chat 里只给：
-
-1. 文件路径
-2. ≤3 行结论 / 3 bullet 摘要
-
-文件位置：
-- 临时分析 → harness 提供 session scratchpad 时优先用 scratchpad；无 scratchpad 的 agent（如 Codex）→ `/tmp/<topic>-YYYYMMDD.md`
-- 项目相关 spec / postmortem → `reports/tech/` 或 `.tasks/`
-- 复用性高的 → 用户指定
-
-理由：output token 上限会截断，墙文本对用户也读不动，写到文件你还能回头编辑。
-
-## 设计提案不模板化
-
-被要求做设计 / 提案时**不允许**直接套通用模板（"Highlights / Alert Card / Action Items / Open Questions"）。
-
-正确做法：
-
-1. 先复述用户提出的**具体问题** / **具体场景** 1-3 个
-2. 针对每个问题给具体方案，引用具体代码 / 数据 / 用户已有 spec
-3. 如果用户没给够约束，**停下来反问**，不要靠假设填空
-
-如果你发现自己在写"As a user I want to..." / "Key metrics: A, B, C" 这种泛框架——停。
+被要求做设计或提案时，不套「Highlights / Alert Card / Action Items / Open Questions」「As a user I want to…」这类通用框架。先复述用户提出的 1–3 个具体问题或场景，针对每个给具体方案，引用具体代码、数据或已有 spec；约束不够就停下来问，不靠假设填空。
 
 ## 教训记录
 
-- 被用户纠正后，把教训写成一条带日期的规则，记进 `~/.claude/lessons.md`。这个文件只存本机，不进任何 git 仓库；同一个仓库的多个 clone 共用它
-- 分节：「通用」放跨项目规则；仓库相关的放在 `## <owner>/<repo>` 节下（用 git remote 名，不用目录名）
-- 文件上限 60 行。同类教训第 2 次出现改成 hook；已写进 CLAUDE.md 或 skill 的删掉
+被用户纠正后按类分流：
+- 能机械检查的 → 改成 hook，拒绝信息里写规则原文。
+- 只和某个项目有关的 → 写进知识库 `~/Documents/AgentVault/projects/<key>/rules.md`，由 hook 注入该项目的会话。白天可以直接写，每晚任务提交。
+- 跨项目通用的 → 在 `~/.claude/lessons.md` 写一句带日期的规则，保留决定行为的命令和判据，不写事故经过。lessons.md 上限 40 条、4,500 字。
+- 完整经过由每晚任务收进知识库 `user/corrections.md`；事故复盘写 `postmortems/`。
 
-## 长任务 token 焦虑信号
+## 长任务的上下文信号
 
-出现以下任何一项 → 是该 reset 上下文了，不要硬撑：
-
-- 用"应该"、"大概"、"为了节约时间直接..."
-- 跳过验证步骤
-- 不读完文件就下结论
-- 回答开始包含"我先快速..."
-
-正确动作：把当前进度 / 已确认结论（含关键事实锚点 file:line）/ 已废弃的假说 / 未完成项与下一步写到 `TASK.md`，告诉用户 reset。
-
-## 教训锚点
-
-- 多个 session 整段死在 output token 上限，用户被迫 reset。
-- refresh-progress 设计多轮 generic 模板，直到用户明确给出 3 个具体问题才收敛。
-- 用户明确说"别啰嗦"后下一条仍然超限——说明只是嘴上承诺没真改。
+出现下面任何一项，就该换新会话接力，不要硬撑：开始说「应该」「大概」「为了节约时间直接…」；跳过验证；不读完文件就下结论；回答以「我先快速…」开头。做法：把进度、已确认的结论（带 file:line）、已放弃的假说、未完成项和下一步写进 `TASK.md`，告诉用户换会话。
