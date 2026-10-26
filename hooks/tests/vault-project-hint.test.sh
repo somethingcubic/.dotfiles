@@ -9,12 +9,15 @@ trap 'rm -rf "$tmp"' EXIT
 vault="$tmp/vault"
 mkdir -p "$vault/_system/scripts" "$vault/projects/demo" "$vault/projects/empty"
 touch "$vault/projects/demo/overview.md" "$vault/projects/demo/status.md"
+printf -- '---\ntype: project-rules\n---\n# demo 规则\n\n- 规则甲：先查维护人\n' > "$vault/projects/demo/rules.md"
+mkdir -p "$vault/projects/norules" && touch "$vault/projects/norules/overview.md"
 cat > "$vault/_system/scripts/collect.py" <<'EOF'
 import fnmatch
 
 
 def load_config():
-    return {"projects": [{"key": "demo", "dirs": ["/work/demo*"]}, {"key": "empty", "dirs": ["/work/empty"]}],
+    return {"projects": [{"key": "demo", "dirs": ["/work/demo*"]}, {"key": "empty", "dirs": ["/work/empty"]},
+                         {"key": "norules", "dirs": ["/work/norules"]}],
             "exclude_session_dirs": ["/work/demo-run"]}
 
 
@@ -48,6 +51,15 @@ out=$(run "$vault" '{"hook_event_name":"SessionStart","cwd":"/work/demo-api"}')
 check "对应项目时提示 overview 和 status" hint "$out" "$vault/projects/demo/overview.md 和 $vault/projects/demo/status.md"
 printf '%s' "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["hookSpecificOutput"]["hookEventName"] == "SessionStart"' \
   && echo "ok   输出是 SessionStart 的 JSON" || { echo "FAIL 输出不是合法 JSON"; fail=1; }
+check "主会话同时注入项目规则" hint "$out" "规则甲：先查维护人"
+if printf '%s' "$out" | grep -q 'type: project-rules'; then echo "FAIL 注入内容带了 frontmatter"; fail=1; else echo "ok   注入内容去掉了 frontmatter"; fi
+out=$(run "$vault" '{"hook_event_name":"SubagentStart","cwd":"/work/demo-api"}')
+check "子 agent 注入项目规则" hint "$out" "规则甲：先查维护人"
+if printf '%s' "$out" | grep -q 'overview.md'; then echo "FAIL 子 agent 不该收到读 overview 的提示"; fail=1; else echo "ok   子 agent 只收到规则"; fi
+printf '%s' "$out" | python3 -c 'import json,sys; assert json.load(sys.stdin)["hookSpecificOutput"]["hookEventName"] == "SubagentStart"' \
+  && echo "ok   子 agent 输出的事件名是 SubagentStart" || { echo "FAIL 子 agent 事件名不对"; fail=1; }
+check "没有 rules.md 时主会话只提示路径" hint "$(run "$vault" '{"cwd":"/work/norules"}')" "norules/overview.md"
+check "没有 rules.md 时子 agent 不输出" silent "$(run "$vault" '{"hook_event_name":"SubagentStart","cwd":"/work/norules"}')"
 check "对应不到项目时不输出" silent "$(run "$vault" '{"cwd":"/somewhere/else"}')"
 check "无人值守目录不输出" silent "$(run "$vault" '{"cwd":"/work/demo-run"}')"
 check "项目目录里没有笔记时不输出" silent "$(run "$vault" '{"cwd":"/work/empty"}')"
