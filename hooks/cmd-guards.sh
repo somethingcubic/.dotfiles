@@ -62,7 +62,12 @@ if printf '%s\n' "$COMMAND" | grep -qE '(^|[;&|[:space:]])(git([[:space:]]+-[^[:
   # escape hatch must be a command PREFIX (env assignment), not a substring anywhere
   printf '%s\n' "$COMMAND" | grep -qE '^[[:space:]]*PRESUBMIT_SKIP=1[[:space:]]' && exit 0
 
-  # candidate repos: every `cd <path>` segment, else hook cwd
+  # Hook cwd is the project dir; the command runs in the session dir (JSON .cwd).
+  # In app-made worktree sessions these differ (see block-main-commit.sh, 2026-10-27).
+  SESSION_CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+  [ -d "$SESSION_CWD" ] && cd -q "$SESSION_CWD"
+
+  # candidate repos: every `cd <path>` segment, else session cwd
   CD_TARGETS=$(printf '%s\n' "$COMMAND" \
     | grep -oE "(^|[;&|(\"']|[[:space:]])[[:space:]]*cd[[:space:]]+[^;&|]+" \
     | sed -E 's/.*cd[[:space:]]+//' \

@@ -1,6 +1,7 @@
 #!/bin/bash
 # 正负例矩阵：bash hooks/tests/block-main-commit.test.sh
-# 建两个临时仓库：M 在 main，F 在 feat。hook 以 M 或 F 作为会话 cwd 运行。
+# 建两个临时仓库：M 在 main，F 在 feat；再从 M 建 worktree W（wtfeat 分支）。
+# hook 进程 cwd 取 M/F/W；可选第 5 个参数放进 JSON 的 .cwd（Claude Code 的会话目录）。
 hook="$(cd "$(dirname "$0")/.." && pwd)/block-main-commit.sh"
 tmp=$(mktemp -d "$HOME/.bmc-test.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
@@ -8,11 +9,13 @@ M="$tmp/main repo"; F="$tmp/feat"
 for d in "$M" "$F"; do mkdir -p "$d"; git -c init.defaultBranch=main init -q "$d" 2>/dev/null || (cd "$d" && git init -q -b main); done
 (cd "$F" && git checkout -q -b feat)
 mkdir -p "$F/sub"
+W="$M/.claude/worktrees/wt"
+(cd "$M" && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init && git worktree add -q -b wtfeat "$W")
 fail=0
 
-check() { # name expected(deny|allow) session_cwd command
+check() { # name expected(deny|allow) hook_process_cwd command [json_cwd]
   local json out got
-  json=$(jq -cn --arg c "$4" '{tool_input:{command:$c}}')
+  json=$(jq -cn --arg c "$4" --arg d "${5:-}" '{tool_input:{command:$c}} + (if $d == "" then {} else {cwd:$d} end)')
   out=$(cd "$3" && printf '%s' "$json" | zsh "$hook")
   if printf '%s' "$out" | grep -q '"deny"'; then got=deny; else got=allow; fi
   if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (want $2 got $got)"; fail=1; fi
@@ -60,6 +63,20 @@ check "merge 后紧跟分号仍拦"                   deny  "$M" 'git merge; ls'
 check "merge 带参数仍拦"                       deny  "$M" 'git merge --no-ff other'
 check "merge 在行尾仍拦"                       deny  "$M" 'git merge'
 check "merge-base 和 merge 同现仍拦"           deny  "$M" 'git merge-base a b && git merge other'
+# 会话目录取 JSON 的 .cwd：Claude Code 以项目目录为进程 cwd 启动 hook，app 建的 worktree 会话里
+# 项目目录是主 checkout（main）；会话已在目标目录时 harness 还会去掉多余的 `cd <会话目录> &&`
+check "worktree 会话直接 commit"                allow "$M" 'git commit -m x'                      "$W"
+check "worktree 会话 heredoc 提交说明"          allow "$M" "git commit -m \"\$(cat <<'EOF'
+msg
+EOF
+)\""                                                                                               "$W"
+check "worktree 会话 merge"                     allow "$M" 'git merge other'                      "$W"
+check "worktree 会话 cd 主 checkout 再 commit"  deny  "$M" "cd \"$M\" && git commit -m x"         "$W"
+check "worktree 会话相对路径 cd 回主 checkout"  deny  "$M" 'cd ../../.. && git commit -m x'       "$W"
+check "worktree 会话子 shell 里 cd 主 checkout" deny  "$M" "(cd \"$M\" && git commit -m x)"       "$W"
+check "保守判定下相对 cd 按会话目录解析"        deny  "$F" '(cd ../../.. && git commit -m x)'     "$W"
+check "会话在 main、进程 cwd 在 feat 仍拦"      deny  "$W" 'git commit -m x'                      "$M"
+check ".cwd 不存在时退回进程 cwd"               deny  "$M" 'git commit -m x'                      "$tmp/nope"
 # 其他既有规则不受影响
 check "git -C 一律拦"                          deny  "$F" "git -C $F commit -m x"
 check "push 到 main 一律拦"                    deny  "$M" "cd $F && git push origin main"
