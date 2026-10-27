@@ -78,4 +78,29 @@ check "文件名里连写的两个词"                     allow 'git add postmo
 check "路径里的 tmux 目录名"                     allow 'ls /tmp/tmux-501/ && cat notes/kill-server.md'
 check "名字里带 tmux 的其他程序"                 allow 'mytmux kill-server'
 
+# Guard 3：push 前的 presubmit-ok marker 按会话目录（JSON 的 .cwd）所在仓库判定。
+# Claude Code 以项目目录为进程 cwd 启动 hook，app 建的 worktree 会话里项目目录是主 checkout。
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/cg-test.XXXXXX"); trap 'rm -rf "$tmp"' EXIT
+M="$tmp/main"; W="$M/.claude/worktrees/wt"
+git -c init.defaultBranch=main init -q "$M"
+(cd "$M" && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init && git worktree add -q -b wtfeat "$W")
+(cd "$W" && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m wt)
+mgit=$(cd "$M" && git rev-parse --absolute-git-dir); wgit=$(cd "$W" && git rev-parse --absolute-git-dir)
+mark() { (cd "$1" && git rev-parse HEAD) > "$2/presubmit-ok"; }
+pcheck() { # name expected(deny|allow) hook_process_cwd json_cwd command
+  local json out got
+  json=$(jq -cn --arg c "$5" --arg d "$4" '{tool_input:{command:$c}} + (if $d == "" then {} else {cwd:$d} end)')
+  out=$(cd "$3" && printf '%s' "$json" | zsh "$hook")
+  if printf '%s' "$out" | grep -q '"deny"'; then got=deny; else got=allow; fi
+  if [ "$got" = "$2" ]; then echo "ok   $1"; else echo "FAIL $1 (want $2 got $got)"; fail=1; fi
+}
+mark "$W" "$wgit"
+pcheck "worktree 已审、主 checkout 未审：worktree 会话 push 放行" allow "$M" "$W" 'git push origin wtfeat'
+pcheck "worktree 会话相对路径 cd 回未审的主 checkout 再 push"     deny  "$M" "$W" 'cd ../../.. && git push'
+pcheck "没有 .cwd 时按进程 cwd（未审的主 checkout）"              deny  "$M" ""   'git push origin wtfeat'
+rm -f "$wgit/presubmit-ok"; mark "$M" "$mgit"
+pcheck "主 checkout 已审、worktree 未审：worktree 会话 push 拦"   deny  "$M" "$W" 'git push origin wtfeat'
+pcheck "worktree 会话 cd 到已审的主 checkout 再 push"            allow "$M" "$W" "cd \"$M\" && git push"
+pcheck ".cwd 不存在时退回进程 cwd（已审的主 checkout）"           allow "$M" "$tmp/nope" 'git push origin wtfeat'
+
 exit $fail
