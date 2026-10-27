@@ -33,7 +33,15 @@ fi
 GITOP='(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+([[:space:]]+[^-[:space:]][^[:space:]]*)?)*[[:space:]]+(commit|merge|push)([^[:alnum:]_-]|$)'
 printf '%s\n' "$COMMAND" | grep -qE "$GITOP" || exit 0
 
-# ── Collect candidate run dirs: hook cwd + every `cd <path>` segment in the command ──
+# Claude Code starts hooks with cwd = project dir ($CLAUDE_PROJECT_DIR) but runs the
+# command in the session dir (JSON .cwd). In app-made worktree sessions the project
+# dir is the main checkout on main, and the harness also drops a redundant leading
+# `cd <session dir> &&`, so every worktree commit looked like a commit on main
+# (2026-10-27). Judge from .cwd; keep the process cwd when it is missing.
+SESSION_CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
+[ -d "$SESSION_CWD" ] && cd -q "$SESSION_CWD"
+
+# ── Collect candidate run dirs: session cwd + every `cd <path>` segment in the command ──
 branch_of() {
   ( cd "$1" 2>/dev/null && { git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --abbrev-ref HEAD 2>/dev/null; } )
 }
