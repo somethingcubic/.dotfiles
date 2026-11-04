@@ -15,7 +15,7 @@ description: 生产、SSH、配置安全的细则。红线一行式在 AGENTS.md
 ## SSH
 
 - 发起新 SSH 前先 `ps aux | grep 'ssh.*<host>'` 查残留连接，有就先 kill。新会话开始时检查上次残留的 SSH 和远程进程：会话中断后它们不会自己退出，会把 sshd 打满，所有人都登录不了。教训：`~/.claude/postmortems/2026-03-12-ssh-zombie-batch-insert.md`
-- 参数含 `*`、`&`、`!`、`$`、`()` 等元字符且引号嵌套超过 2 层时，改用临时文件或 stdin（`echo "SQL" | ssh host 'mysql ...'`），不内联硬拼。
+- 参数含 `*`、`&`、`!`、`$`、`()` 等元字符且引号嵌套超过 2 层时，改用临时文件或 stdin，不内联硬拼。SQL 不写成临时 .sql 文件：在同一条命令里用引号 heredoc 直传给远程 mysql（`ssh … 'mysql …' <<'SQL' … SQL`）。ordo_ai 的 db-guard 看不到 .sql 文件内容，会弹窗打断用户（`cmd-guards.sh` Guard 5 直接拒绝这种写法）。读本地 .sql 文件和查生产分成两条命令。
 
 ## 配置与凭据
 

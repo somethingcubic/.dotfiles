@@ -5,6 +5,7 @@
 #   Guard 3: git push / gh pr create require pre-submit-review marker
 #            (.git/presubmit-ok content == current HEAD sha)
 #   Guard 4: tmux kill-server / kill-session must name a server other than the user's main one
+#   Guard 5: a prod DB client must not be fed a .sql file (use a quoted heredoc instead)
 # NOTE: never pipe via `echo` — zsh builtin echo interprets backslashes and corrupts
 # JSON/commands containing \" (fail-open class found 2026-07-21). Use printf '%s\n'.
 
@@ -38,6 +39,30 @@ if printf '%s\n' "$COMMAND" | grep -qE '\bgo[[:space:]]+test\b' \
    && printf '%s\n' "$COMMAND" | grep -qF './...' \
    && ! printf '%s\n' "$COMMAND" | grep -qE '^[[:space:]]*FULLTEST=1[[:space:]]'; then
   deny "❌ 禁止全量 go test ./...（验证分级红线）。按 verify skill 档位跑针对性测试；重型场景确需全量且经用户授权: 命令以 FULLTEST=1 前缀开头。"
+fi
+
+# ── Guard 5: a prod DB client must not be fed a .sql file (2026-11-04) ──
+# ordo_ai's project hook db-guard.sh cannot read a .sql file's contents, so it answers `ask`
+# for any .sql file piped / redirected / sourced into a prod DB client — and `ask` prompts even
+# in bypass mode (13 of 27 Bash prompts 10-20..11-04). Deny here first (deny > ask), so the agent
+# rewrites to a quoted heredoc, whose SQL db-guard can see: reads pass, writes still ask.
+# Detection mirrors ordo_ai/.claude/hooks/db-guard.sh: the command is flattened to one line
+# (continuations and newlines -> space); prod = writable RDS instance id, or jump-host IP
+# anywhere, or ssh alias ordoai / data-center in target position; plus a DB client token; plus
+# db-guard's "visible file execution" patterns. One deliberate difference: a .sql file written
+# by a quoted heredoc in the same command passes db-guard but is denied here (rule: no .sql
+# files for prod SQL). Not covered, db-guard misses them too: a .sql path held in a variable,
+# compressed dumps. Escape hatch, only after the user approved running that file (e.g. a
+# migration): command prefix SQLFILE_OK=1 — db-guard then still asks as before.
+G5_CMD=${${COMMAND//$'\\\n'/ }//$'\n'/ }
+G5_PROD_RE='rm-t4ni20gy35mupqlkx|rm-t4nj2b7krsynud7p0|8\.219\.202\.238|8\.222\.139\.116|ssh([[:space:]]+-[^[:space:]]+([[:space:]]+[^[:space:]-][^[:space:]]*)?)*[[:space:]]+([a-z0-9._-]+@)?(ordoai|data-center)([[:space:]";]|$)'
+G5_CLIENT_RE="(^|[;&|[:space:]\"'/(\`])(mysqladmin|mysqlsh|mysqlimport|mariadb-admin|mariadb-import|mariadb|mysql)([[:space:];&|\"']|\$)"
+G5_FEED_RE="<[[:space:]]*[^<>;&|]*\\.sql|\\.sql['\"]?[[:space:]]*\\||(source|\\\\\\.)[[:space:]]+[^;&|]*\\.sql"
+if printf '%s\n' "$G5_CMD" | grep -qiE "$G5_PROD_RE" \
+   && printf '%s\n' "$G5_CMD" | grep -qiE "$G5_CLIENT_RE" \
+   && printf '%s\n' "$G5_CMD" | grep -qiE "$G5_FEED_RE" \
+   && ! printf '%s\n' "$COMMAND" | grep -qE '^[[:space:]]*SQLFILE_OK=1[[:space:]]'; then
+  deny "❌ 查生产库不要把 .sql 文件传给 mysql：ordo_ai 的 db-guard 看不到文件内容，会弹窗打断用户。改成同一条命令里用引号 heredoc 直传 SQL：ssh -o ConnectTimeout=10 -o ServerAliveInterval=5 <生产机> 'mysql …' <<'SQL' … SQL；读本地 .sql 文件和查生产分成两条命令。只有用户在对话里明确同意执行某个 .sql 文件（如迁移）时，才在命令开头加 SQLFILE_OK=1，db-guard 仍会弹窗确认。"
 fi
 
 # ── Guard 4: tmux kill-server / kill-session must name a non-main server (incident 2026-10-15) ──
