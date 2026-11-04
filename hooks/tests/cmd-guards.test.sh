@@ -78,6 +78,25 @@ check "文件名里连写的两个词"                     allow 'git add postmo
 check "路径里的 tmux 目录名"                     allow 'ls /tmp/tmux-501/ && cat notes/kill-server.md'
 check "名字里带 tmux 的其他程序"                 allow 'mytmux kill-server'
 
+# Guard 5：查生产库不把 .sql 文件传给 mysql（db-guard 看不到文件内容会 ask，bypass 下也弹窗）
+S='ssh -o ConnectTimeout=10 -o ServerAliveInterval=5'
+check "G5 cat .sql 管道给生产 mysql"             deny  "cat /tmp/q.sql | $S root@8.219.202.238 \"mysql -N -B ordoai\""
+check "G5 远端 mysql < .sql"                     deny  "$S root@8.219.202.238 \"mysql ordoai < /tmp/q.sql\""
+check "G5 本地重定向 .sql 进 ssh"                deny  "$S root@8.222.139.116 \"mysql ordoai\" < /tmp/q.sql"
+check "G5 先 heredoc 写 .sql 再执行"             deny  $'cat > /tmp/q8.sql <<\'SQL\'\nSELECT 1;\nSQL\n'"$S root@8.219.202.238 \"mysql ordoai\" < /tmp/q8.sql"
+check "G5 读本地 .sql 与查生产写在一条"          deny  "head -3 migrations/x.up.sql | cat; echo \"SELECT 1\" | $S root@8.219.202.238 \"mysql ordoai\""
+check "G5 mysql -e source .sql"                  deny  "$S root@8.219.202.238 \"mysql ordoai -e 'source /tmp/q.sql'\""
+check "G5 ssh 别名 ordoai"                       deny  "cat q.sql | $S ordoai \"mysql ordoai\""
+check "G5 大写 .SQL 也拦"                         deny  "cat /tmp/Q.SQL | $S root@8.219.202.238 \"mysql ordoai\""
+check "G5 heredoc 直传 SELECT"                   allow "$S root@8.219.202.238 \"mysql -N -B ordoai\" <<'SQL'"$'\nSELECT COUNT(*) FROM t;\nSQL'
+check "G5 heredoc 直传 UPDATE（交给 db-guard）"  allow "$S root@8.219.202.238 \"mysql ordoai\" <<'SQL'"$'\nUPDATE t SET a=1 WHERE id=1;\nSQL'
+check "G5 echo 管道 SELECT"                      allow "echo \"SELECT 1\" | $S root@8.219.202.238 \"mysql -N -B ordoai\""
+check "G5 测试机不管"                            allow "cat /tmp/q.sql | $S root@8.219.185.206 \"mysql ordo_test\""
+check "G5 本地 mysql 不经 ssh"                   allow 'mysql -h 127.0.0.1 ordo < schema.sql'
+check "G5 生产 mysqldump 输出到 .sql"            allow "$S root@8.219.202.238 \"mysqldump ordoai t\" > /tmp/t.sql"
+check "G5 SQLFILE_OK 前缀放行"                   allow "SQLFILE_OK=1 cat /tmp/q.sql | $S root@8.219.202.238 \"mysql ordoai\""
+check "G5 生产机只看日志"                         allow "$S root@8.219.202.238 \"tail -n 50 /var/log/app.log\""
+
 # Guard 3：push 前的 presubmit-ok marker 按会话目录（JSON 的 .cwd）所在仓库判定。
 # Claude Code 以项目目录为进程 cwd 启动 hook，app 建的 worktree 会话里项目目录是主 checkout。
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/cg-test.XXXXXX"); trap 'rm -rf "$tmp"' EXIT
