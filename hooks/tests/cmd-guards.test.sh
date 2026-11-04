@@ -88,6 +88,16 @@ check "G5 读本地 .sql 与查生产写在一条"          deny  "head -3 migra
 check "G5 mysql -e source .sql"                  deny  "$S root@8.219.202.238 \"mysql ordoai -e 'source /tmp/q.sql'\""
 check "G5 ssh 别名 ordoai"                       deny  "cat q.sql | $S ordoai \"mysql ordoai\""
 check "G5 大写 .SQL 也拦"                         deny  "cat /tmp/Q.SQL | $S root@8.219.202.238 \"mysql ordoai\""
+check "G5 \$( ) 里的 ssh"                        deny  "out=\$($S root@8.219.202.238 \"mysql ordoai\" < /tmp/q.sql)"
+check "G5 子 shell 括号里的 ssh"                  deny  "($S root@8.219.202.238 \"mysql ordoai\" < /tmp/q.sql)"
+check "G5 bash -c 里的 ssh"                      deny  "bash -c \"$S root@8.219.202.238 'mysql ordoai' < /tmp/q.sql\""
+check "G5 绝对路径 /usr/bin/ssh"                 deny  "/usr/bin/$S root@8.219.202.238 \"mysql ordoai\" < /tmp/q.sql"
+check "G5 mysql 的 \\. 命令"                     deny  "$S root@8.219.202.238 \"mysql ordoai -e '\\. /tmp/q.sql'\""
+check "G5 mysqlsh 客户端"                        deny  "cat /tmp/q.sql | $S root@8.219.202.238 \"mysqlsh --sql ordoai\""
+check "G5 source 后反斜杠续行"                   deny  "$S root@8.219.202.238 \"mysql ordoai -e 'source "$'\\\n'" /tmp/q.sql'\""
+check "G5 别名写在续行上"                        deny  "$S "$'\\\n'" ordoai \"mysql ordoai\" < q.sql"
+check "G5 直连生产 RDS"                          deny  'mysql -h rm-t4ni20gy35mupqlkx.mysql.singapore.rds.aliyuncs.com ordoai < q.sql'
+check "G5 只提到 .sql 文件名、不连生产"          allow 'grep -rn "x.sql" docs/ | head'
 check "G5 heredoc 直传 SELECT"                   allow "$S root@8.219.202.238 \"mysql -N -B ordoai\" <<'SQL'"$'\nSELECT COUNT(*) FROM t;\nSQL'
 check "G5 heredoc 直传 UPDATE（交给 db-guard）"  allow "$S root@8.219.202.238 \"mysql ordoai\" <<'SQL'"$'\nUPDATE t SET a=1 WHERE id=1;\nSQL'
 check "G5 echo 管道 SELECT"                      allow "echo \"SELECT 1\" | $S root@8.219.202.238 \"mysql -N -B ordoai\""
