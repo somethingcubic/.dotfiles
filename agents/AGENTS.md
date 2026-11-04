@@ -67,6 +67,7 @@
 
 ## Skill 路由（细分见 `rules/skill-routing.md`）
 
+- 收到别人反馈的问题要排查（群聊、私聊、转来的截图）→ 先走 `investigate-flow`（和我协作的四步流程），找根因的方法仍按下一条
 - pipeline 积压/延迟/吞吐 → `pipeline-debug-protocol`（ordo 主仓先读 `docs/pipeline/data_pipeline_fact_map.md`）；其他 bug → `debugging-discipline`；加表或平台化前 → `decision-discipline`
 - 改完 → `verify`；push 前 → `pre-submit-review`（hook 检查 marker）
 - 代码搜索优先 `sg`（ast-grep）；子 agent 并行改文件用 `isolation: "worktree"`，自己手动并行隔离用独立 clone；worktree 用完即 `git worktree remove` 并 prune
