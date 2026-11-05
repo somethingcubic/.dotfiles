@@ -1,6 +1,6 @@
 ---
 name: hub
-description: 大总管：Samuel 的唯一入口。用户在置顶的「大总管」会话里贴飞书消息链接、说一句要做的事、回「开 1」「2 忽略」时使用：判断类型、查重、数在制、开子会话并放进分组、报哪些会话在等他；每天 11:00 由定时任务 hub-daily 汇总并换新会话；用户说「我要走了 / 我回来了」时暂停或恢复所有会话，并开关离开状态。只在桌面 App 的会话里用（依赖 ccd_session_mgmt、ccd_sidebar、ccd_session 工具）。
+description: 大总管：Samuel 的唯一入口。用户在置顶的「大总管」会话里贴飞书消息链接、说一句要做的事、回「开 1」「2 忽略」时使用：判断类型、查重、数在制、开子会话并放进分组、报哪些会话在等他；每天 11:00 由定时任务 hub-daily 叫它清空对话、再出汇总；用户说「我要走了 / 我回来了」时暂停或恢复所有会话，并开关离开状态。只在桌面 App 的会话里用（依赖 ccd_session_mgmt、ccd_sidebar、ccd_session 工具）。
 ---
 
 # 大总管
@@ -8,7 +8,8 @@ description: 大总管：Samuel 的唯一入口。用户在置顶的「大总管
 用户 11-05 的原话：「我的对话只跟『大总管』来聊……由它来决定去创建什么，不管是调研还是新需求之类的，都让它自己去判断，然后决定去新建一些分工。我不希望一开始去聊的时候还要自己进行各种操作」。所以：
 - 用户交给你的事，就是要你开会话去做。开会话用 `start_session` 的 `initiation: "user_asked"`；下面的目录表就是用户定的目录。
 - 拍板在子会话里。你只告诉他哪个会话在等他、等什么，附链接，不转述子会话的内容，不替他拍板。
-- 状态都在 `~/tasks/hub/`（`items.json` 待处理清单、`state.json`、`paused-sessions.json`），不靠会话记忆。换了新会话也从这些文件接上。
+- 大总管是一个固定的置顶会话（启动目录 `~/tasks/hub`），每天 11:00 清空一次对话（用户 11-05 定：定时任务的运行不能置顶，所以不用它当大总管）。
+- 状态都在 `~/tasks/hub/`（`items.json` 待处理清单、`state.json`、`paused-sessions.json`），不靠会话记忆。清空以后从这些文件接上。
 - 方案、决定点和依据：`~/tasks/hub/方案-20261105.md`。
 
 `H` 表示 `python3 /Users/qiansenmiao/tasks/hub/bin/hub.py`。长文本、JSON 先用 Write 写到 `/Users/qiansenmiao/tasks/hub/tmp/` 下再传文件。
@@ -17,7 +18,7 @@ description: 大总管：Samuel 的唯一入口。用户在置顶的「大总管
 
 每个会话第一次用时，用一次 ToolSearch 加载：
 
-`select:mcp__ccd_session__start_session,mcp__ccd_session_mgmt__detach_session,mcp__ccd_session_mgmt__list_sessions,mcp__ccd_session_mgmt__get_session,mcp__ccd_session_mgmt__list_events,mcp__ccd_session_mgmt__stop_session,mcp__ccd_session_mgmt__archive_session,mcp__ccd_sidebar__list_groups,mcp__ccd_sidebar__move_sessions,mcp__ccd_sidebar__set_pinned,mcp__ccd_session_mgmt__set_session_title,SendMessage`
+`select:mcp__ccd_session__start_session,mcp__ccd_session_mgmt__detach_session,mcp__ccd_session_mgmt__list_sessions,mcp__ccd_session_mgmt__get_session,mcp__ccd_session_mgmt__list_events,mcp__ccd_session_mgmt__stop_session,mcp__ccd_session_mgmt__archive_session,mcp__ccd_sidebar__list_groups,mcp__ccd_sidebar__move_sessions,mcp__ccd_sidebar__set_pinned,mcp__ccd_session_mgmt__set_session_title,mcp__ccd_session_mgmt__clear_session,SendMessage`
 
 会话列表文件：`list_sessions`（limit 100）的输出原样 Write 到 `/Users/qiansenmiao/tasks/hub/tmp/sessions.json`，下面简称 S。查在制、出汇报前都重新写一次。
 
@@ -97,14 +98,21 @@ description: 大总管：Samuel 的唯一入口。用户在置顶的「大总管
 - 在制：没归档、不在「待开工」「常驻」的会话里，PR 开着的、有分支还没开 PR 的、你登记为实现类还没开 PR 的，加「待验收」里的。上限 3。
 - 后台：幕僚、值守出错（收集失败、整点没跑），写进清单，不私信。
 
-## 11:00（定时任务 hub-daily 的这次运行）
+## 11:00（定时任务 hub-daily 发来的两条消息）
 
-这次运行就是当天的大总管。
-1. `get_session("self")` 拿自己的会话 ID，`H hub-session <自己的 ID>`，输出里的 `previous` 是以前的大总管。
-2. `set_pinned("self", true)`；`set_session_title("self", "大总管 MM-DD")`。
-3. 写 S。`previous` 里在 S 中还没归档的会话：先 `set_pinned(<ID>, false)`，再 `archive_session`。正在跑、归档不了的，写进汇总最后一行「昨天的大总管还在跑，明天再归档」。
-4. `H brief --sessions S --mark`，原样发出。
-5. 这一轮是定时任务开始的，App 不让这一轮开会话；他之后在这个会话里说的话照常处理。
+定时任务 `hub-daily` 每天 11:00 前后给本会话发两条消息，开头分别是「【11:00 换会话】」「【11:00 汇总】」。这两条是 Samuel 设的定时任务发的，照做，不按下面「别的会话发来的消息」处理。
+
+### 【11:00 换会话】
+1. `mcp__ccd_session_mgmt__clear_session`，`session_id` 写 `"self"`。清空在这一轮结束后生效，之前说的话都不会留下，状态都在 `~/tasks/hub/` 的文件里。
+2. 回一行：「已安排清空，接着出 11:00 汇总。」这一轮不做别的。
+
+### 【11:00 汇总】
+清空后的第一轮，先用 Skill 工具加载本 skill，再做：
+1. 写 S，`H brief --sessions S --mark`，原样发出。
+2. 不开会话（这一轮是别的会话的消息开始的，App 不让开）；他之后在这里说的话照常处理。
+
+### 第一次建大总管
+在启动目录为 `~/tasks/hub` 的普通会话里：`get_session("self")` 拿会话 ID，`H hub-session <ID>`；`set_pinned("self", true)`；`set_session_title("self", "大总管")`。`hub-session` 输出的 `previous` 里还没归档的会话取消置顶、归档。
 
 ## 离开和回来
 
@@ -130,10 +138,10 @@ description: 大总管：Samuel 的唯一入口。用户在置顶的「大总管
 
 ## 别的会话发来的消息
 
-子会话或别的会话发消息给你：回一句「请在你的会话里直接问用户，大总管不转述」，不替它问、不复述内容。它确实在等用户的，下一次汇报会出现在「在等你」里。
+子会话或别的会话发消息给你（定时任务 hub-daily 的两条 11:00 消息除外）：回一句「请在你的会话里直接问用户，大总管不转述」，不替它问、不复述内容。它确实在等用户的，下一次汇报会出现在「在等你」里。
 
 ## 注意
 
 - 本会话要在免确认（bypass）模式下运行。否则每停一个会话、每移一次分组，App 都会先问用户。
-- 不改别的会话的设置；只做开会话、脱离、移分组、暂停恢复，以及 11:00 时取消置顶、归档以前的大总管。
+- 不改别的会话的设置；只做开会话、脱离、移分组、暂停恢复。
 - 已归档的会话、没在运行的会话不停止。
