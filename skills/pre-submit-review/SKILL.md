@@ -1,6 +1,6 @@
 ---
 name: pre-submit-review
-description: PR push 之前的红队自审 checklist。当你即将 git push、即将提 PR、即将把改动交给 Codex / reviewer / cross-review 之前必须先跑一遍。把会被 reviewer 抓的问题在自己手上抓掉，省一轮 review。Triggers：用户说"准备提 PR"、"push 一下"、"交给 codex review"、"提交前自查"、"red team 一下"，或检测到 git push / gh pr create 即将执行。
+description: PR push 之前的红队自审 checklist。当你即将 git push、即将提 PR、即将把改动交给 Codex / reviewer 之前必须先跑一遍。把会被 reviewer 抓的问题在自己手上抓掉，省一轮 review。Triggers：用户说"准备提 PR"、"push 一下"、"交给 codex review"、"提交前自查"、"red team 一下"，或检测到 git push / gh pr create 即将执行。
 ---
 
 # pre-submit-review
@@ -11,7 +11,7 @@ description: PR push 之前的红队自审 checklist。当你即将 git push、�
 
 - 即将 `git push origin <branch>`（除非 push 到个人 sandbox 分支）
 - 即将 `gh pr create` / `gh pr ready`
-- 即将给 Codex / cross-review / 用户做交付
+- 即将给 Codex / 用户做交付
 - 准备 mark "implementation complete" / 发 shutdown signal
 
 跑完所有检查项都过了再 push。任何一项失败必须先修。
