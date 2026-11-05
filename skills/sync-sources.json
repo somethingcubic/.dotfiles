@@ -15,13 +15,6 @@
       "target": "skills/find-skills"
     },
     {
-      "name": "hive",
-      "repo": "notdp/hive",
-      "ref": "main",
-      "source": "skills/hive",
-      "target": "skills/hive"
-    },
-    {
       "name": "react-best-practices",
       "repo": "vercel-labs/agent-skills",
       "ref": "main",

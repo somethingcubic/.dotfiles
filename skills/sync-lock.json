@@ -19,14 +19,6 @@
       "commit": "c5ad3a85b4d16666974b161131413d08bfef3f7e"
     },
     {
-      "name": "hive",
-      "repo": "notdp/hive",
-      "ref": "main",
-      "source": "skills/hive",
-      "target": "skills/hive",
-      "commit": "ef61455347522b71d0c0b20fc4d6a4cfbc3d089f"
-    },
-    {
       "name": "react-best-practices",
       "repo": "vercel-labs/agent-skills",
       "ref": "main",

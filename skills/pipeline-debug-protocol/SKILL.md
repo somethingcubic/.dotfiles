@@ -175,7 +175,7 @@ grep -rn "INSERT INTO <table>" ordo-backend/ --include="*.go"
 ## 和其他 skill 的关系
 
 - `refresh-diagnose`：场景 skill。Phase 0 会引用本 protocol
-- `codex-driven-dev`：排查结论要进 PR / spec 前，用这个流程让 Codex 独立验证
+- 排查结论要进 PR / spec 前，交给 Codex App 独立审查
 - `superpowers:systematic-debugging`：更通用的 debug 方法论；本 skill 是它在 Ordo AI pipeline 场景的特化版
 
 ## 教训引用
