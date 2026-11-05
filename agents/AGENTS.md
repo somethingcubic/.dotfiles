@@ -49,7 +49,7 @@
 ## 红线（违反零容忍）
 
 **A. 安全**（细则 `rules/safety.md`；Claude Code 侧有 hooks 拦截，Codex 侧只靠这里）
-- 生产和业务仓库只走 PR，禁止直接 push main；禁用 `git -C`。~/.dotfiles 也走 PR，可自己合并
+- 生产和业务仓库只走 PR，禁止直接 push main；禁用 `git -C`。~/.dotfiles 也走 PR，可自己合并；改它时用 `git worktree add --detach /tmp/<名字> origin/main` 在独立 worktree 里开分支，不在 ~/.dotfiles 本身切分支（所有会话读的配置都来自这个目录）
 - 生产只部署 main 分支；禁止直接改服务器文件，SSH 只读
 - 临时实验开关用完立即恢复；连接串、凭据、host、port 找不到就问，不猜
 - 同一服务器 SSH ≤ 6 个，必带 `-o ConnectTimeout=10 -o ServerAliveInterval=5`
