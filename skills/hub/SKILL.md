@@ -97,11 +97,11 @@ description: 大总管：Samuel 的唯一入口。用户在置顶的「大总管
 
 ## Codex App
 
-要操作桌面 App、点网页、开浏览器的事交给 Codex App（用户 11-05 定），不在 Claude 会话里做。11-05 实测：经 Codex App 的本机服务开的会话出现在 Codex App 列表里；会话没在 App 里点开时浏览器不可用。
+要操作桌面 App、点网页、开浏览器的事交给 Codex App（用户 11-05 定），不在 Claude 会话里做。11-05 实测：会话没在 App 里点开时浏览器不可用。11-09 实测：脚本新建的会话不一定出现在 Codex App 列表里，所以用链接直接打开。
 
 1. 把任务写进 `/Users/qiansenmiao/tasks/hub/tmp/codex-<短名>.txt`，最后一行写「先只回一句「等用户打开」；收到「开始」再做。」
-2. `python3 /Users/qiansenmiao/tasks/hub/bin/codex_app.py start --cwd <目录> --name <标题> --file <文件>`，记下 `thread`。
-3. 告诉他：「已在 Codex App 开了会话『<标题>』，请在 Codex App 里点开它，回我一句『开了』。」
+2. `python3 /Users/qiansenmiao/tasks/hub/bin/codex_app.py start --cwd <目录> --name <标题> --file <文件>`，记下 `thread` 和 `link`。
+3. 运行 `open "<link>"`，Codex App 会跳到前台并打开这个会话。告诉他：「已在 Codex App 打开会话『<标题>』，请看一眼，回我一句『开了』。」
 4. 他说开了：把「开始」写进文件，`codex_app.py queue <thread> --file <文件>`；queue 成功后立刻用 Bash 的 `run_in_background` 跑 `python3 /Users/qiansenmiao/tasks/hub/bin/codex_app.py wait <thread> --timeout <秒>`（不写默认 1800）。Codex 这一轮做完后约 2 秒这个后台命令就结束，你会收到任务完成通知，不用自己写循环查，也不用等他来说。必须在 queue 之后起 wait：先起的话，wait 会把上一轮「等用户打开」当成结果马上返回。
 5. 收到通知后读 wait 的输出：退出码 0 且 `done` 为 true 是做完了，`last_message` 是 Codex 的最后一条回复；`turn_status` 为 `interrupted` 或 `failed` 是这一轮中断或出错；退出码 3 是超时（Codex 还在做，或在等他在 App 里批准），告诉他去 Codex App 看，需要的话再起一次 wait。你自己派的单，只告诉他做完没有、在 Codex App 的哪个会话里看，不转述内容；别的会话照这一节派的单，拿结果按自己的流程接着做。他中途问结果时用 `codex_app.py result <thread>`。
 6. 有清单编号的，`H mark <编号> --status 已开会话 --session codex:<thread> --kind Codex`。
