@@ -105,6 +105,13 @@ description: 大总管：Samuel 的唯一入口。用户在置顶的「大总管
 
 要操作桌面 App、点网页、开浏览器的事交给 Codex App（用户 11-05 定），不在 Claude 会话里做。11-05 实测：会话没在 App 里点开时浏览器不可用。11-09 实测：脚本新建的会话不一定出现在 Codex App 列表里，所以用链接直接打开。11-11 修：以前 start 刚返回就 open，后台服务还占着会话，App 底部提示「This is open in another app」，只能 Retry 或 Fork，Fork 出的会话大总管等不到结果；现在 start 等后台服务放开会话才返回，queue 和 wait 也不再让后台服务重新占住会话（原理写在 `codex_app.py` 文件头「谁占着会话」）。
 
+锁屏时（用户 11-19 定）：要操作网页前先查锁屏，`ioreg -n Root -d1 -a | python3 -c 'import plistlib,sys;print(any(u.get("CGSSessionScreenIsLocked") for u in plistlib.loads(sys.stdin.buffer.read()).get("IOConsoleUsers",[])))'`，输出 True 是锁了（没锁时 IOConsoleUsers 里没有这个键）。没锁照旧按下面 1–6 步交给 Codex App。锁了的话：
+
+- Ordo 测试环境（tbrand.ordo.global 及其 `/t/<环境名>/` 路径）的页面检查改用 agent-browser，必须指定 Playwright 自带的 chrome-headless-shell：`agent-browser --session <名字> --executable-path ~/Library/Caches/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-mac-arm64/chrome-headless-shell open <url>`，之后 `agent-browser --session <名字> snapshot -i`、`agent-browser --session <名字> screenshot <路径>`，用完 `agent-browser --session <名字> close`。路径里的版本号 1223 会随 Playwright 升级变，先 `ls ~/Library/Caches/ms-playwright/` 核对。
+- 代替不了的：要登录 Gmail 或真实账号的事（例如从真实 Gmail 网页复制签名样本），这个浏览器里没有这些登录，取到的也不是 Chrome 复制时放进剪贴板的内容。这类事仍然等解锁交给 Codex App：会话把这一步写进任务单「等解锁」，先做不依赖界面的部分。
+- 依据：11-19 23:00–23:02 锁屏中实测，默认的 agent-browser 能打开页面、读页面结构，截图卡住超时（两次，加软件渲染参数也卡）；换成 chrome-headless-shell 后截图成功。不锁屏时照旧走 Codex App，11-05 的默认规则不变。
+- 没验证的：要登录的测试站页面，会话能不能自己用测试账号登录。
+
 1. 把任务写进 `/Users/qiansenmiao/tasks/hub/tmp/codex-<短名>.txt`，最后一行写「先只回一句「等用户打开」；收到「开始」再做。」
 2. `python3 /Users/qiansenmiao/tasks/hub/bin/codex_app.py start --cwd <目录> --name <标题> --file <文件>`（Bash 的 `timeout` 写 600000），记下 `thread` 和 `link`。start 要 1–2 分钟：它等后台服务做完第一条、放开会话才返回。`ok` 为 false 时不要 open，按 `error` 做。
 3. 运行 `open "<link>"`，Codex App 会跳到前台并打开这个会话。告诉他：「已在 Codex App 打开会话『<标题>』，请看一眼，回我一句『开了』。」
