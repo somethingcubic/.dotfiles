@@ -1,6 +1,6 @@
 # AGENTS.md / CLAUDE.md
 
-> Claude Code 和 Codex 共用的入口（两边都软链到这里）。只放每轮都用得上的规则，细则在 `~/.dotfiles/rules/` 和 skills。上限 80 行；同类错误再犯就补一句规则，事故经过写 `postmortems/`。Codex 不会自动加载 rules 和 `@` import（2026-10-10 实测），开工前必须先读 `~/.dotfiles/rules/*.md`、`~/.dotfiles/agents/per-turn-conduct.md`、`~/.claude/lessons.md`，以及知识库里当前项目的 `projects/<key>/rules.md`（有的话）。
+> Claude Code 和 Codex 共用的入口（两边都软链到这里）。只放每轮都用得上的规则，细则在 `~/.dotfiles/rules/` 和 skills。上限 80 行；同一条规则再犯 2 次以上不再补句子，按「被纠正就记教训」处理，事故经过写 `postmortems/`。Codex 不会自动加载 rules 和 `@` import（2026-10-10 实测），开工前必须先读 `~/.dotfiles/rules/*.md`、`~/.dotfiles/agents/per-turn-conduct.md`、`~/.claude/lessons.md`，以及知识库里当前项目的 `projects/<key>/rules.md`（有的话）。
 
 ## 我是谁
 
@@ -30,7 +30,7 @@
 - **只改被要求的**：不顺手重构，不改无关代码；改完列出需要同步的代码和文档，等我确认
 - **本地 bug 自己修**：读日志和失败的测试，找到根因修好。生产只读排查
 - **失败先补机制**：同类失败第 2 次，先归类，再加统一的重试/降级/超时；连续失败 2 次用 `/think-unstuck`
-- **被纠正就记教训**：按 `rules/response-style.md`「教训记录」分流：能机械检查的改 hook；项目专属的写知识库 `projects/<key>/rules.md`；跨项目通用的在本机 `~/.claude/lessons.md` 写一句带日期的规则（上限 40 条、4,500 字，不进 git）
+- **被纠正就记教训**：按 `rules/response-style.md`「教训记录」分流：能机械检查的改 hook；项目专属的写知识库 `projects/<key>/rules.md`；跨项目通用的在本机 `~/.claude/lessons.md` 写一句带日期的规则（上限 40 条、4,500 字，不进 git）。lessons 净条数不增（2026-11-24 定）：加一条要同时替换或合并掉一条。同一条规则再犯 2 次以上（次数查知识库 `user/rule-tally.md`），不再往规则里加句子或日期，去向由每周候选给出：能机械判断的 hook 检查项，或某个 skill 的某一步，我批了再合入
 - **记到待改进**（2026-11-05 至 11-20 复测）：我说「记到待改进」时，把这条追加到 `~/tasks/collab-metrics/待改进.md`（日期、哪个会话或流程、哪里别扭、当时怎么绕过），不改规则或流程，11-20 复测时一起处理
 - **在制上限**（2026-11-04 定）：需要我深审的实现类事项同时最多 3 个。开新的实现会话前，用会话列表数一下在做和等我验收的，满了就把新事项放进侧边栏「待开工」分组，并告诉我
 - **长任务**：在项目根目录维护 `TASK.md`，完成后归档到 `.tasks/`；上下文快满就换新 agent 接力
@@ -47,7 +47,7 @@
 
 - 主库 `~/Documents/AgentVault`（Obsidian）。非 trivial 任务开工前读它的 `index.md`，按 git remote 或目录名找到项目，读该项目 `overview.md` 和 `status.md`；做决策或碰到旧坑再读 `decisions.md`、`pitfalls.md`。纯问答、<20 行改动、子 agent 不读（派单里点名的除外）。项目规则 `rules.md` 由 hook 自动注入 Claude Code 的主会话和子 agent，Codex 开工时自己读
 - 库与本文件或 lessons.md 冲突时，以本文件和 lessons.md 为准，并在回复里指出冲突
-- 白天不改库；例外是我说「记到知识库」时，以及记录项目规则时，直接编辑对应笔记，由每晚 22:00 的定时任务提交
+- 白天不改库；例外是我说「记到知识库」时、记录项目规则时，以及大总管和合入规则候选的会话改 `user/rule-tally.md` 的「状态」「处理」时，直接编辑对应笔记，由每晚 22:00 的定时任务提交
 
 ## 红线（违反零容忍）
 
