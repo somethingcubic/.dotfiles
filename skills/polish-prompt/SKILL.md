@@ -65,5 +65,5 @@ Samuel 11-24 的原话：「有时候我是想帮我完善优化一个prompt，�
 
 ## 和别的 skill 的关系
 
-- `raise-target`：大总管开会话前写完整派单用，照旧。他点名要「优化 prompt」时用本 skill。
-- 本 skill 只管把话写清楚。写完他说「派」，再按 `hub` 的开会话步骤走。
+- `raise-target`：大总管派单前写完整派单用，照旧。他点名要「优化 prompt」时用本 skill。
+- 本 skill 只管把话写清楚。写完他说「派」，再按 `hub` 的派单步骤走。
